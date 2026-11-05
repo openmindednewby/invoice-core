@@ -12,7 +12,7 @@ const ISSUE_DATE = '2030-10-08';
 const STATUS_PATH = 'invoices/2030/2030-001/status.json';
 const RECORD_PATH = 'invoices/2030/2030-001/invoice.json';
 
-async function issued(paymentTermsDays: number | null = 30): Promise<{ storage: InvoiceStorage; record: InvoiceRecord }> {
+async function issued(paymentTermsDays = 30): Promise<{ storage: InvoiceStorage; record: InvoiceRecord }> {
   const storage = makeStorage({}, { paymentTermsDays });
   await issueInvoice(storage, { ...REQUEST, date: ISSUE_DATE }, { render: fakePdf });
   return { storage, record: await readInvoice(storage, '2030-001') };
@@ -132,9 +132,10 @@ describe('paymentStateOf AC-14', () => {
   });
 
   it('with no payment terms, is never overdue', async () => {
-    const { record } = await issued(null);
+    const { record } = await issued(30);
+    const noTerms = { ...record, client: { ...record.client, paymentTermsDays: null } };
 
-    const state = paymentStateOf(record, { paidOn: null }, '2040-01-01');
+    const state = paymentStateOf(noTerms, { paidOn: null }, '2040-01-01');
 
     expect(state).toBe(PaymentState.Unpaid);
   });

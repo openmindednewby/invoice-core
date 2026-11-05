@@ -1,12 +1,20 @@
-import { StorageExistsError } from './storage';
+import { isStorageExistsError } from './storage';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 
-const FORMAT_PATH = 'format.json';
+export const FORMAT_PATH = 'format.json';
 const FORMAT_VERSION = 1;
 const NUMBER_YEAR = /(\d{4})-\d+$/;
 const LEGACY_YEAR = /^\d{4}$/;
 const LEGACY_FILE = /^(\d{4}-\d+)\.(json|pdf)$/;
+const OS_FILES = new Set(['desktop.ini', 'thumbs.db', '.ds_store']);
+
+export const NUMBER_SHAPE = /^(CN-)?\d{4}-\d+$/;
+
+/** Whether a file is one the operating system leaves in any folder. */
+export function isOsFile(name: string): boolean {
+  return OS_FILES.has(name.toLowerCase());
+}
 
 /** Serialises a folder file the one way every writer does. */
 export function toJson(value: unknown): string {
@@ -56,7 +64,7 @@ export async function ensureFormat(storage: InvoiceStorage): Promise<void> {
   const text = await storage.readText(FORMAT_PATH);
   if (text === null) {
     await storage.writeNew(FORMAT_PATH, toJson({ version: FORMAT_VERSION })).catch((error: unknown) => {
-      if (!(error instanceof StorageExistsError)) {
+      if (!isStorageExistsError(error)) {
         throw error;
       }
     });

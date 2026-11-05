@@ -4,7 +4,7 @@ import type { PdfRender } from './issue';
 import { expandDescription } from './lines';
 import { toCents } from './money';
 import { loadParties } from './parties';
-import { StorageExistsError } from './storage';
+import { isStorageExistsError } from './storage';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { FieldError, InvoiceLine } from './types';
@@ -63,7 +63,7 @@ export async function prepareYearSchedule(storage: InvoiceStorage, request: Prep
   try {
     await storage.writeNew(schedulePath(schedule.id), toJson(schedule));
   } catch (error) {
-    if (error instanceof StorageExistsError) {
+    if (isStorageExistsError(error)) {
       throw new InvoiceError([{ path: 'schedule', message: `${schedule.id} is already prepared` }]);
     }
     throw error;

@@ -1,4 +1,5 @@
-import { ensureFormat, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
+import { assertNoConflicts } from './conflicts';
+import { ensureFormat, NUMBER_SHAPE, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { resolveLayout, selectLayoutName } from './layouts';
 import { computeTotals, resolveLines } from './lines';
@@ -9,8 +10,6 @@ import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { InvoiceRecord, InvoiceRequest, IssuedInvoice, ScheduleRef } from './types';
 import type { RenderInput } from './view';
-
-const NUMBER_SHAPE = /^(CN-)?\d{4}-\d+$/;
 
 /** The lock every number claim holds, so two tabs never take one number. */
 export const NUMBER_LOCK = 'invoice-number';
@@ -46,6 +45,7 @@ export async function issueInvoice(storage: InvoiceStorage, request: InvoiceRequ
   await ensureFormat(storage);
   const render = rendererFor(storage, options);
   return storage.withLock(NUMBER_LOCK, async () => {
+    await assertNoConflicts(storage, final.date.slice(0, 4));
     const number = await nextNumber(storage, final.date.slice(0, 4));
     const lines = resolveLines(final, parties.client);
     const pdf = await render({ request: final, number, parties, lines });

@@ -1,3 +1,4 @@
+import { assertNoConflicts } from './conflicts';
 import { ensureFormat, numberYear } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { commitRecord, listIssued, NUMBER_LOCK, readInvoice, rendererFor } from './issue';
@@ -55,6 +56,7 @@ export async function issueCreditNote(storage: InvoiceStorage, input: CreditNote
   checkTarget(invoice, input);
   const render = rendererFor(storage, options);
   return storage.withLock(NUMBER_LOCK, async () => {
+    await assertNoConflicts(storage, input.date.slice(0, 4));
     const remaining = invoice.totals.netCents - (await creditedSoFar(storage, invoice, input.date));
     const cents = creditCents(input, remaining);
     const number = await nextNumber(storage, input.date.slice(0, 4), InvoiceKind.CreditNote);

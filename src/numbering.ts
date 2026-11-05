@@ -1,6 +1,6 @@
 import { recordPath, toJson } from './folder';
 import { InvoiceKind } from './InvoiceKind';
-import { StorageExistsError } from './storage';
+import { isStorageExistsError } from './storage';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { InvoiceRecord } from './types';
@@ -30,7 +30,7 @@ export async function claimInvoice(storage: InvoiceStorage, record: InvoiceRecor
   try {
     await storage.writeNew(path, toJson(record));
   } catch (error) {
-    const message = error instanceof StorageExistsError ? `${record.number} is already issued` : `could not save ${record.number}: ${(error as Error).message}`;
+    const message = isStorageExistsError(error) ? `${record.number} is already issued` : `could not save ${record.number}: ${(error as Error).message}`;
     throw new InvoiceError([{ path: 'number', message }]);
   }
   return path;

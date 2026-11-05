@@ -26,3 +26,8 @@ export class StorageExistsError extends Error {
     this.name = 'StorageExistsError';
   }
 }
+
+/** Whether an error means the file exists; matched by name, so another package's class of this name counts. */
+export function isStorageExistsError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'StorageExistsError';
+}
