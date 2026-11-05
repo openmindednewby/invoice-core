@@ -12,7 +12,6 @@ const ALLOWED_KEYS = new Set(['name', 'titleAlign', ...COLOUR_KEYS, ...Object.ke
 /** The name a request uses when neither it, the client nor the company picks a layout. */
 export const DEFAULT_LAYOUT = 'classic';
 
-/** The look of a PDF: plain data only, so a layout cannot run anything. */
 export interface InvoiceLayout {
   name: string; pageMargin: number; bodySize: number; titleSize: number; logoWidth: number;
   accent: string; muted: string; band: string; titleAlign: LayoutAlign;

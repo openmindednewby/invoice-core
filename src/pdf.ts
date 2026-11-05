@@ -8,6 +8,11 @@ import type { RenderInput } from './view';
 
 const IMAGE_TYPES: Record<string, string> = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
 const BASE64_CHUNK = 32768;
+const SIGNATURES: Record<string, number[]> = {
+  'image/png': [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+  'image/jpeg': [0xff, 0xd8, 0xff],
+};
+const SVG_ELEMENT = '<svg';
 
 interface PdfDocument { getBuffer(callback: (bytes: Uint8Array) => void): void; }
 interface PdfMake { createPdf(definition: object, layouts?: unknown, fonts?: unknown, vfs?: unknown): PdfDocument; }
@@ -48,7 +53,12 @@ export async function loadLogo(storage: InvoiceStorage, logo?: string): Promise<
   if (!bytes) {
     throw new InvoiceError([{ path: 'company.logo', message: `file not found: ${logo}` }]);
   }
-  return type ? { image: `data:${type};base64,${toBase64(bytes)}` } : { svg: new TextDecoder().decode(bytes) };
+  const svg = type ? '' : new TextDecoder().decode(bytes);
+  const readable = type ? (SIGNATURES[type] ?? []).every((value, index) => bytes[index] === value) : svg.includes(SVG_ELEMENT);
+  if (!readable) {
+    throw new InvoiceError([{ path: 'company.logo', message: `not a readable ${extension.toUpperCase()} image: ${logo}` }]);
+  }
+  return type ? { image: `data:${type};base64,${toBase64(bytes)}` } : { svg };
 }
 
 function toBytes(pdfMake: PdfMake, definition: object, vfs: unknown): Promise<Uint8Array> {

@@ -3,7 +3,7 @@ export type { FolderConflict } from './conflicts';
 export { issueCreditNote } from './creditNote';
 export type { CreditNoteRequest } from './creditNote';
 export { exportQuarterCsv } from './exportCsv';
-export { ensureFormat, invoiceDir, migrateLegacyFolder, pdfPath, recordPath } from './folder';
+export { assertNotLegacy, ensureFormat, ensureIssuable, hasLegacyFiles, invoiceDir, migrateLegacyFolder, pdfPath, recordPath } from './folder';
 export type { MigrationResult } from './folder';
 export { FolderConflictKind } from './FolderConflictKind';
 export { FolderOpenState } from './FolderOpenState';

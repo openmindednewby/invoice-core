@@ -76,28 +76,75 @@ export async function ensureFormat(storage: InvoiceStorage): Promise<void> {
   }
 }
 
+/** Whether the folder still holds files in the old layout, which nothing lists or exports until they are migrated. */
+export async function hasLegacyFiles(storage: InvoiceStorage): Promise<boolean> {
+  for (const year of (await storage.list('')).filter((name) => LEGACY_YEAR.test(name))) {
+    if ((await storage.list(year)).some((name) => LEGACY_FILE.test(name))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Refuses a folder that still holds old-layout files, naming the fix. */
+export async function assertNotLegacy(storage: InvoiceStorage): Promise<void> {
+  if (await hasLegacyFiles(storage)) {
+    throw new InvoiceError([{ path: 'folder', message: 'still holds invoices in the old layout; migrate the folder first' }]);
+  }
+}
+
+/** Readies a folder for a write that takes a number: an old layout is refused, a new folder gets its format. */
+export async function ensureIssuable(storage: InvoiceStorage): Promise<void> {
+  await assertNotLegacy(storage);
+  await ensureFormat(storage);
+}
+
+interface MigrationFile { old: Uint8Array | null; target: Uint8Array | null; path: string; }
+
+function hasContent(bytes: Uint8Array | null): bytes is Uint8Array {
+  return bytes !== null && bytes.length > 0;
+}
+
+function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function canResume(files: MigrationFile[]): boolean {
+  const compared = files.flatMap(({ old, target }) => (old && hasContent(target) ? [sameBytes(old, target)] : []));
+  const orphanTarget = files.some(({ old, target }) => old === null && target !== null);
+  return !compared.includes(false) && (!orphanTarget || compared.includes(true));
+}
+
+async function copyToTarget(storage: InvoiceStorage, { old, target, path }: MigrationFile): Promise<void> {
+  if (old && target === null) {
+    await storage.writeNew(path, old);
+  } else if (old && target?.length === 0) {
+    await storage.replace(path, old);
+  }
+}
+
 async function migrateNumber(storage: InvoiceStorage, year: string, number: string): Promise<boolean> {
-  const oldRecord = await storage.readBytes(`${year}/${number}.json`);
-  const oldPdf = await storage.readBytes(`${year}/${number}.pdf`);
-  const taken = (await storage.readBytes(recordPath(number))) !== null || (await storage.readBytes(pdfPath(number))) !== null;
-  if (taken) {
+  const files: MigrationFile[] = await Promise.all(
+    [{ from: `${year}/${number}.json`, path: recordPath(number) }, { from: `${year}/${number}.pdf`, path: pdfPath(number) }].map(async ({ from, path }) => ({
+      old: await storage.readBytes(from),
+      target: await storage.readBytes(path),
+      path,
+    })),
+  );
+  if (!canResume(files)) {
     return false;
   }
-  if (oldRecord) {
-    await storage.writeNew(recordPath(number), oldRecord);
-  }
-  if (oldPdf) {
-    await storage.writeNew(pdfPath(number), oldPdf);
+  for (const file of files) {
+    await copyToTarget(storage, file);
   }
   await storage.remove(`${year}/${number}.json`);
   await storage.remove(`${year}/${number}.pdf`);
   return true;
 }
 
-/** What a migration moved, and the numbers left in place because the target exists. */
 export interface MigrationResult { moved: string[]; conflicts: string[]; }
 
-/** Moves <year>/<number>.json + .pdf to invoices/<year>/<number>/. Never overwrites. */
+/** Moves <year>/<number>.json + .pdf to invoices/<year>/<number>/; a rerun finishes an interrupted move. Never overwrites content. */
 export async function migrateLegacyFolder(storage: InvoiceStorage): Promise<MigrationResult> {
   await ensureFormat(storage);
   const result: MigrationResult = { moved: [], conflicts: [] };

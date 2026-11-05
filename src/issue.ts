@@ -1,28 +1,35 @@
 import { assertNoConflicts } from './conflicts';
-import { ensureFormat, NUMBER_SHAPE, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
+import { ensureIssuable, NUMBER_SHAPE, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { resolveLayout, selectLayoutName } from './layouts';
 import { computeTotals, resolveLines } from './lines';
 import { claimInvoice, nextNumber } from './numbering';
 import { checkRequest } from './parties';
-import { renderInvoicePdf } from './pdf';
+import { loadLogo, renderInvoicePdf } from './pdf';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { InvoiceRecord, InvoiceRequest, IssuedInvoice, ScheduleRef } from './types';
 import type { RenderInput } from './view';
 
-/** The lock every number claim holds, so two tabs never take one number. */
+const RENDER_TIMEOUT_MS = 60000;
+
 export const NUMBER_LOCK = 'invoice-number';
 
-/** Renders PDF bytes; the default is renderInvoicePdf. */
 export type PdfRender = (input: RenderInput) => Promise<Uint8Array>;
 
-/** Options for issuing; schedule marks which schedule month this came from. */
-export interface IssueOptions { render?: PdfRender; schedule?: ScheduleRef; }
+export interface IssueOptions { render?: PdfRender; schedule?: ScheduleRef; renderTimeoutMs?: number; }
 
-/** The renderer in force for these options. */
+function settleWithin(work: Promise<Uint8Array>, timeoutMs: number): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new InvoiceError([{ path: 'pdf', message: `rendering did not finish within ${timeoutMs} ms` }])), timeoutMs);
+    void work.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
+/** The renderer in force for these options; one that never finishes rejects, so it cannot hold the number lock. */
 export function rendererFor(storage: InvoiceStorage, options: IssueOptions): PdfRender {
-  return options.render ?? ((input): Promise<Uint8Array> => renderInvoicePdf(storage, input));
+  const render = options.render ?? ((input): Promise<Uint8Array> => renderInvoicePdf(storage, input));
+  return (input) => settleWithin(render(input), options.renderTimeoutMs ?? RENDER_TIMEOUT_MS);
 }
 
 /** Saves the record first, then its PDF; a failed PDF leaves a record that reprintInvoice can finish. */
@@ -42,7 +49,8 @@ export async function issueInvoice(storage: InvoiceStorage, request: InvoiceRequ
   const final = { ...request, draft: false };
   const parties = await checkRequest(storage, final);
   await resolveLayout(storage, selectLayoutName(final, parties));
-  await ensureFormat(storage);
+  await loadLogo(storage, parties.company.logo);
+  await ensureIssuable(storage);
   const render = rendererFor(storage, options);
   return storage.withLock(NUMBER_LOCK, async () => {
     await assertNoConflicts(storage, final.date.slice(0, 4));
@@ -82,17 +90,18 @@ export async function listIssued(storage: InvoiceStorage, year: string): Promise
   return Promise.all(present.flatMap((name) => name ?? []).map((name) => readInvoice(storage, name)));
 }
 
-/** Recreates the missing PDF of an issued record; never replaces an existing PDF. */
+/** Recreates the missing or empty PDF of an issued record; never replaces a PDF with content. */
 export async function reprintInvoice(storage: InvoiceStorage, number: string, options: IssueOptions = {}): Promise<{ number: string; pdfPath: string }> {
   const record = await readInvoice(storage, number);
   const path = pdfPath(number);
-  if ((await storage.readBytes(path)) !== null) {
+  const existing = await storage.readBytes(path);
+  if (existing !== null && existing.length > 0) {
     throw new InvoiceError([{ path: 'number', message: `${number} already has a PDF` }]);
   }
   const { company, client, rule } = record;
   const pdf = await rendererFor(storage, options)({
-    request: record.request, number, parties: { company, client, rule }, lines: record.lines, kind: record.kind, creditFor: record.creditFor, reason: record.reason,
+    request: record.request, number, parties: { company, client, rule }, lines: record.lines, totals: record.totals, kind: record.kind, creditFor: record.creditFor, reason: record.reason,
   });
-  await storage.writeNew(path, pdf);
+  await (existing === null ? storage.writeNew(path, pdf) : storage.replace(path, pdf));
   return { number, pdfPath: path };
 }

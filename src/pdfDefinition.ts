@@ -14,7 +14,6 @@ const PAGE_SIZE = 'A4';
 
 type PdfNode = Record<string, unknown>;
 
-/** The logo a PDF shows: an image data URL or SVG text. */
 export type PdfLogo = { image: string } | { svg: string };
 
 function value(text: string): PdfNode {

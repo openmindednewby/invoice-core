@@ -1,4 +1,4 @@
-import { ensureFormat, FORMAT_PATH, isOsFile } from './folder';
+import { ensureFormat, FORMAT_PATH, hasLegacyFiles, isOsFile } from './folder';
 import { FolderOpenState } from './FolderOpenState';
 import type { InvoiceStorage } from './storage';
 
@@ -8,6 +8,9 @@ const LEGACY_YEAR = /^\d{4}$/;
 /** Opens a picked folder: an empty one gets the format, anything else unrecognised is left untouched. */
 export async function openDataFolder(storage: InvoiceStorage): Promise<FolderOpenState> {
   const names = (await storage.list('')).filter((name) => !isOsFile(name));
+  if (await hasLegacyFiles(storage)) {
+    return FolderOpenState.Legacy;
+  }
   if (names.includes(FORMAT_PATH)) {
     await ensureFormat(storage);
     return FolderOpenState.Existing;

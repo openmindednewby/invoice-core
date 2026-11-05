@@ -1,3 +1,4 @@
+import { assertNotLegacy } from './folder';
 import { listIssued } from './issue';
 import { InvoiceKind } from './InvoiceKind';
 import { centsToAmount } from './money';
@@ -47,6 +48,7 @@ export async function exportQuarterCsv(storage: InvoiceStorage, year: string, qu
   if (!YEAR.test(year)) {
     throw new InvoiceError([{ path: 'year', message: 'must be YYYY' }]);
   }
+  await assertNotLegacy(storage);
   const records = (await listIssued(storage, year)).filter((record) => inQuarter(record, quarter)).sort(byDateThenNumber);
   return `${BOM}${[HEADER.join(','), ...records.map(toRow)].join(NEWLINE)}${NEWLINE}`;
 }

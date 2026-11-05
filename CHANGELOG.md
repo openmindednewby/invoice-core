@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+- A number folder left empty by a failed write no longer uses up its number; the retry takes it.
+- `FolderConflictKind` gains `MissingRecord`, `MissingPdf` and `DuplicateScheduleMonth`. The last two are reported but do not block issuing, so they can be fixed by a reprint or a credit note.
+- A corrupt logo is refused before the number lock; a render that never finishes rejects after `renderTimeoutMs` (default 60 s).
+- `issueDueMonths` reports a month with a record as issued, with `errors` if its PDF or the schedule save failed; such a month can no longer be edited.
+- `reprintInvoice` replaces a 0-byte PDF.
+- The last credit note of an invoice takes the remaining VAT, so the parts add up; `RenderInput.totals` prints what the record holds.
+- `issueInvoice`, `issueCreditNote`, `prepareYearSchedule` and `exportQuarterCsv` refuse a folder that still holds old-layout files; `openDataFolder` reports it as legacy even with a format file.
+- `migrateLegacyFolder` finishes an interrupted move on a rerun.
+- `formatCents` formats negative amounts.
+
 ## 0.2.0
 
 Open a picked folder (`openDataFolder`), payment status in a separate `status.json`, sync-conflict and duplicate-number detection that blocks issuing, and `StorageExistsError` recognised by name so another package can implement the storage.

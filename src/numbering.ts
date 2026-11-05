@@ -1,4 +1,4 @@
-import { recordPath, toJson } from './folder';
+import { pdfPath, recordPath, toJson } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { isStorageExistsError } from './storage';
 import type { InvoiceStorage } from './storage';
@@ -13,13 +13,25 @@ function highest(names: string[], pattern: RegExp): number {
   return names.reduce((max, name) => Math.max(max, Number(pattern.exec(name)?.[1] ?? 0)), 0);
 }
 
+async function highestRecorded(storage: InvoiceStorage, year: string, pattern: RegExp): Promise<number> {
+  const numbered = (await storage.list(`invoices/${year}`))
+    .flatMap((name) => (pattern.test(name) ? [{ name, sequence: highest([name], pattern) }] : []))
+    .sort((a, b) => b.sequence - a.sequence);
+  for (const { name, sequence } of numbered) {
+    if ((await storage.readBytes(recordPath(name))) !== null || (await storage.readBytes(pdfPath(name))) !== null) {
+      return sequence;
+    }
+  }
+  return 0;
+}
+
 /** Returns the next gap-free number for a year, such as 2030-002 or CN-2030-001. */
 export async function nextNumber(storage: InvoiceStorage, year: string, kind: InvoiceKind = InvoiceKind.Invoice): Promise<string> {
   if (!YEAR.test(year)) {
     throw new InvoiceError([{ path: 'year', message: 'must be YYYY' }]);
   }
   const prefix = kind === InvoiceKind.CreditNote ? CREDIT_PREFIX : '';
-  const current = highest(await storage.list(`invoices/${year}`), new RegExp(`^${prefix}${year}-(\\d+)$`));
+  const current = await highestRecorded(storage, year, new RegExp(`^${prefix}${year}-(\\d+)$`));
   const legacy = prefix === '' ? highest(await storage.list(year), new RegExp(`^${year}-(\\d+)\\.(?:json|pdf)$`)) : 0;
   return `${prefix}${year}-${String(Math.max(current, legacy) + 1).padStart(PAD, '0')}`;
 }

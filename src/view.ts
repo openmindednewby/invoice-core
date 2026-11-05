@@ -2,7 +2,7 @@ import { InvoiceKind } from './InvoiceKind';
 import { computeTotals, resolveLines } from './lines';
 import { formatCents } from './money';
 import { addDays, displayDate, periodTexts } from './period';
-import type { InvoiceRequest, Parties, ResolvedLine } from './types';
+import type { InvoiceRequest, Parties, ResolvedLine, Totals } from './types';
 import { isBlank } from './validate';
 
 /** What a blank required field prints as on a draft. */
@@ -10,13 +10,11 @@ export const BLANK_MARK = '[________]';
 
 const DRAFT_NUMBER = 'DRAFT';
 
-/** What a renderer receives. A null number means a draft. */
 export interface RenderInput {
   request: InvoiceRequest; number: string | null; parties: Parties;
-  lines?: ResolvedLine[]; kind?: InvoiceKind; creditFor?: string; reason?: string;
+  lines?: ResolvedLine[]; totals?: Totals; kind?: InvoiceKind; creditFor?: string; reason?: string;
 }
 
-/** Everything a PDF prints, already formatted. */
 export interface InvoiceView {
   draft: boolean; creditNote: boolean; number: string; date: string; dueDate: string; periodEn: string; periodEl: string;
   company: { name: string; addressLines: string[]; regNo: string; vatNumber: string; bank: string; iban: string; bic: string };
@@ -34,7 +32,7 @@ function shown(value: unknown): string {
 export function buildInvoiceView(input: RenderInput): InvoiceView {
   const { request, number, parties: { company, client, rule } } = input;
   const lines = input.lines ?? resolveLines(request, client);
-  const totals = computeTotals(lines, rule.ratePercent);
+  const totals = input.totals ?? computeTotals(lines, rule.ratePercent);
   const period = periodTexts(request.period);
   return {
     draft: number === null,

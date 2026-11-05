@@ -67,7 +67,7 @@ describe('findFolderConflicts on record-less folders AC-09', () => {
     expect(conflicts).toEqual([{ kind: FolderConflictKind.MissingRecord, path: 'invoices/2030/2030-001' }]);
   });
 
-  it('with a PDF and no record, reports the missing record and the number stays uncounted', async () => {
+  it('with a PDF and no record, reports the missing record and never reuses the number', async () => {
     const storage = await seeded();
     await storage.writeNew('invoices/2030/2030-001/2030-001.pdf', OLD_PDF);
 
@@ -75,7 +75,7 @@ describe('findFolderConflicts on record-less folders AC-09', () => {
     const next = await nextNumber(storage, '2030');
 
     expect(conflicts).toEqual([{ kind: FolderConflictKind.MissingRecord, path: 'invoices/2030/2030-001' }]);
-    expect(next).toBe('2030-001');
+    expect(next).toBe('2030-002');
   });
 });
 

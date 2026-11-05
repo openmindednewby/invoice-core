@@ -1,17 +1,17 @@
 import { assertNoConflicts } from './conflicts';
-import { ensureFormat, numberYear } from './folder';
+import { ensureIssuable, numberYear } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { commitRecord, listIssued, NUMBER_LOCK, readInvoice, rendererFor } from './issue';
+import { loadLogo } from './pdf';
 import type { IssueOptions } from './issue';
 import { computeTotals } from './lines';
 import { centsToAmount, toCents } from './money';
 import { nextNumber } from './numbering';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
-import type { InvoiceRecord, IssuedInvoice } from './types';
+import type { InvoiceRecord, IssuedInvoice, Totals } from './types';
 import { isBlank, isRealDate } from './validate';
 
-/** What to credit. Without an amount the credit note covers all the invoice has left. */
 export interface CreditNoteRequest { invoiceNumber: string; date: string; reason: string; amount?: string; }
 
 function checkInput(input: CreditNoteRequest): void {
@@ -23,12 +23,21 @@ function checkInput(input: CreditNoteRequest): void {
   }
 }
 
-async function creditedSoFar(storage: InvoiceStorage, invoice: InvoiceRecord, date: string): Promise<number> {
+async function creditedSoFar(storage: InvoiceStorage, invoice: InvoiceRecord, date: string): Promise<Pick<Totals, 'netCents' | 'vatCents'>> {
   const first = Number(numberYear(invoice.number));
   const last = Number(date.slice(0, 4));
   const years = Array.from({ length: Math.max(last - first + 1, 0) }, (_, i) => String(first + i));
   const records = (await Promise.all(years.map((year) => listIssued(storage, year)))).flat();
-  return records.filter((record) => record.creditFor === invoice.number).reduce((sum, record) => sum + record.totals.netCents, 0);
+  const credits = records.filter((record) => record.creditFor === invoice.number);
+  return {
+    netCents: credits.reduce((sum, record) => sum + record.totals.netCents, 0),
+    vatCents: credits.reduce((sum, record) => sum + record.totals.vatCents, 0),
+  };
+}
+
+function creditTotals(computed: Totals, remainingNet: number, remainingVat: number): Totals {
+  const vat = computed.netCents === remainingNet ? remainingVat : Math.min(computed.vatCents, remainingVat);
+  return { netCents: computed.netCents, vatCents: vat, totalCents: computed.netCents + vat };
 }
 
 function creditCents(input: CreditNoteRequest, remaining: number): number {
@@ -51,13 +60,15 @@ function checkTarget(invoice: InvoiceRecord, input: CreditNoteRequest): void {
 /** Issues a credit note that references its invoice and takes its own gap-free CN- number. */
 export async function issueCreditNote(storage: InvoiceStorage, input: CreditNoteRequest, options: IssueOptions = {}): Promise<IssuedInvoice> {
   checkInput(input);
-  await ensureFormat(storage);
+  await ensureIssuable(storage);
   const invoice = await readInvoice(storage, input.invoiceNumber);
   checkTarget(invoice, input);
+  await loadLogo(storage, invoice.company.logo);
   const render = rendererFor(storage, options);
   return storage.withLock(NUMBER_LOCK, async () => {
     await assertNoConflicts(storage, input.date.slice(0, 4));
-    const remaining = invoice.totals.netCents - (await creditedSoFar(storage, invoice, input.date));
+    const credited = await creditedSoFar(storage, invoice, input.date);
+    const remaining = invoice.totals.netCents - credited.netCents;
     const cents = creditCents(input, remaining);
     const number = await nextNumber(storage, input.date.slice(0, 4), InvoiceKind.CreditNote);
     const description = `Credit for invoice ${invoice.number}: ${input.reason}`;
@@ -65,7 +76,8 @@ export async function issueCreditNote(storage: InvoiceStorage, input: CreditNote
     const { company, client, rule } = invoice;
     const request = { ...invoice.request, date: input.date, amounts: [], lines: [{ description, amount: centsToAmount(cents) }], draft: false };
     const shared = { kind: InvoiceKind.CreditNote, creditFor: invoice.number, reason: input.reason, lines } as const;
-    const pdf = await render({ request, number, parties: { company, client, rule }, ...shared, lines });
-    return commitRecord(storage, { number, request, company, client, rule, ...shared, lines, totals: computeTotals(lines, rule.ratePercent) }, pdf);
+    const totals = creditTotals(computeTotals(lines, rule.ratePercent), remaining, invoice.totals.vatCents - credited.vatCents);
+    const pdf = await render({ request, number, parties: { company, client, rule }, ...shared, lines, totals });
+    return commitRecord(storage, { number, request, company, client, rule, ...shared, lines, totals }, pdf);
   });
 }

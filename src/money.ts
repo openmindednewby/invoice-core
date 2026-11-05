@@ -21,8 +21,9 @@ export function toCents(amount: string): number | null {
 
 /** Formats cents in Greek style: 295200 becomes "2.952,00". */
 export function formatCents(cents: number): string {
-  const whole = groupThousands(Math.floor(cents / CENTS_PER_UNIT).toString());
-  return `${whole},${(cents % CENTS_PER_UNIT).toString().padStart(2, '0')}`;
+  const size = Math.abs(cents);
+  const whole = groupThousands(Math.floor(size / CENTS_PER_UNIT).toString());
+  return `${cents < 0 ? '-' : ''}${whole},${(size % CENTS_PER_UNIT).toString().padStart(2, '0')}`;
 }
 
 /** Formats cents as a plain amount: -4000 becomes "-40.00". */

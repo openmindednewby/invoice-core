@@ -1,7 +1,3 @@
-/**
- * The data folder as the core sees it. Paths are relative, with forward slashes.
- * Browser and Node implementations live outside this package.
- */
 export interface InvoiceStorage {
   /** Returns the file as text, or null if it does not exist. */
   readText(path: string): Promise<string | null>;
@@ -19,7 +15,6 @@ export interface InvoiceStorage {
   withLock<T>(name: string, work: () => Promise<T>): Promise<T>;
 }
 
-/** Thrown by writeNew when the file already exists. */
 export class StorageExistsError extends Error {
   constructor(path: string) {
     super(`already exists: ${path}`);
