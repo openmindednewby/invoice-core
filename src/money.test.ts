@@ -35,3 +35,21 @@ describe('computeTotals AC-12', () => {
     expect(totals).toEqual({ netCents: 123450, vatCents: 23456, totalCents: 146906 });
   });
 });
+
+describe('formatCents with a negative amount', () => {
+  it('with -40.50, puts one sign in front of the whole amount', () => {
+    const cents = -4050;
+
+    const text = formatCents(cents);
+
+    expect(text).toBe('-40,50');
+  });
+
+  it('with thousands, groups them after the sign', () => {
+    const cents = -295250;
+
+    const text = formatCents(cents);
+
+    expect(text).toBe('-2.952,50');
+  });
+});

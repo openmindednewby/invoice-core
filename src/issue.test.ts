@@ -1,17 +1,63 @@
 import { describe, expect, it } from 'vitest';
 
-import { issueInvoice, readInvoice, renderDraftPdf, reprintInvoice } from './issue';
+import { issueInvoice, NUMBER_LOCK, readInvoice, renderDraftPdf, reprintInvoice } from './issue';
+import { createMemoryStorage } from './memoryStorage';
 import { claimInvoice, nextNumber } from './numbering';
-import { fakePdf, makeStorage, REQUEST } from './testing/fixtures';
+import { loadLogo } from './pdf';
+import { clientJson, companyJson, fakePdf, makeStorage, REQUEST } from './testing/fixtures';
 import { extractPdfText, pdfPageCount } from './testing/pdfText';
 import { InvoiceError } from './types';
+
+describe('issueInvoice with a logo or a render that cannot finish', () => {
+  it('with a corrupt logo, refuses before the lock and leaves the lock free', async () => {
+    const storage = createMemoryStorage({ 'company.json': companyJson({ logo: 'logo.png' }), 'clients/acme.json': clientJson(), 'logo.png': new Uint8Array([1, 2, 3, 4]) });
+    const request = { ...REQUEST, date: '2030-10-08' };
+
+    const attempt = issueInvoice(storage, request, { render: fakePdf });
+
+    await expect(attempt).rejects.toMatchObject({ errors: [{ path: 'company.logo' }] });
+    await expect(storage.withLock(NUMBER_LOCK, () => Promise.resolve('free'))).resolves.toBe('free');
+    expect(await nextNumber(storage, '2030')).toBe('2030-001');
+  });
+
+  it('with a render that never settles, rejects, frees the lock and uses no number', async () => {
+    const storage = makeStorage();
+    const request = { ...REQUEST, date: '2030-10-08' };
+    const never = (): Promise<Uint8Array> => new Promise(() => undefined);
+
+    const attempt = issueInvoice(storage, request, { render: never, renderTimeoutMs: 5 });
+
+    await expect(attempt).rejects.toMatchObject({ errors: [{ path: 'pdf' }] });
+    await expect(storage.withLock(NUMBER_LOCK, () => Promise.resolve('free'))).resolves.toBe('free');
+    expect(await nextNumber(storage, '2030')).toBe('2030-001');
+  });
+});
+
+describe('loadLogo', () => {
+  it.each([['logo.png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]], ['logo.jpg', [0xff, 0xd8, 0xff, 0xe0]]] as const)('with %s holding its real signature, accepts it', async (name, bytes) => {
+    const storage = createMemoryStorage({ [name]: new Uint8Array(bytes) });
+
+    const logo = await loadLogo(storage, name);
+
+    expect(logo?.image).toContain('base64,');
+  });
+
+  it('with an svg holding no svg element, refuses', async () => {
+    const storage = createMemoryStorage({ 'logo.svg': 'not a picture' });
+
+    const attempt = loadLogo(storage, 'logo.svg');
+
+    await expect(attempt).rejects.toMatchObject({ errors: [{ path: 'company.logo' }] });
+  });
+});
 
 describe('issueInvoice', () => {
   it('with two issues, gives each its own gap-free number', async () => {
     const storage = makeStorage();
+    const request = { ...REQUEST, date: '2030-10-08' };
 
-    const first = await issueInvoice(storage, REQUEST, { render: fakePdf });
-    const second = await issueInvoice(storage, REQUEST, { render: fakePdf });
+    const first = await issueInvoice(storage, request, { render: fakePdf });
+    const second = await issueInvoice(storage, request, { render: fakePdf });
 
     expect([first.number, second.number]).toEqual(['2030-001', '2030-002']);
     expect(await nextNumber(storage, '2030')).toBe('2030-003');
@@ -37,8 +83,9 @@ describe('issueInvoice', () => {
 
   it('with a new folder, writes the record and PDF under invoices/<year>/<number>', async () => {
     const storage = makeStorage();
+    const request = { ...REQUEST, date: '2030-10-08' };
 
-    const issued = await issueInvoice(storage, REQUEST, { render: fakePdf });
+    const issued = await issueInvoice(storage, request, { render: fakePdf });
 
     expect(issued.recordPath).toBe('invoices/2030/2030-001/invoice.json');
     expect(issued.pdfPath).toBe('invoices/2030/2030-001/2030-001.pdf');
@@ -118,9 +165,10 @@ describe('renderDraftPdf AC-12', () => {
 
 describe('issued PDF AC-12', () => {
   it('with Greek text and a cents total, has it selectable and exact', async () => {
-    const storage = makeStorage({}, { vatRule: 'cy-domestic-19' });
+    const storage = makeStorage({}, { vatRule: 'cy-domestic-19', description: 'Υπηρεσίες για τον μήνα {periodElAccusative}' });
+    const request = { ...REQUEST, period: '2030-09', date: '2030-10-08', amounts: ['1234.50'] };
 
-    const issued = await issueInvoice(storage, REQUEST);
+    const issued = await issueInvoice(storage, request);
     const bytes = await storage.readBytes(issued.pdfPath);
     const text = await extractPdfText(bytes ?? new Uint8Array());
 

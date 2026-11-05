@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { issueInvoice, listIssued, readInvoice } from './issue';
 import { editScheduleMonth, issueDueMonths, prepareYearSchedule, readSchedule } from './schedule';
+import type { InvoiceStorage } from './storage';
 import { fakePdf, makeStorage, REQUEST } from './testing/fixtures';
 
 const PREPARE = { clientId: 'acme', year: '2030', monthlyAmount: '1000' };
 
 describe('prepareYearSchedule AC-18', () => {
   it('with a client and a monthly amount, prepares 12 drafts with no numbers', async () => {
-    const storage = makeStorage();
+    const storage = makeStorage({}, { description: 'Υπηρεσίες για τον μήνα {periodElAccusative}' });
 
     const schedule = await prepareYearSchedule(storage, PREPARE);
 
@@ -105,6 +106,59 @@ describe('issueDueMonths AC-20', () => {
     const result = await issueDueMonths(storage, 'acme-2030', { today: '2030-02-05', render: fakePdf });
 
     expect(result.issued).toEqual([{ period: '2030-01', number: '2030-002' }]);
+  });
+});
+
+describe('issueDueMonths when a write fails after the record is saved', () => {
+  const TODAY = { today: '2030-03-05', render: fakePdf };
+
+  async function failingPdf(): Promise<InvoiceStorage> {
+    const storage = makeStorage();
+    await prepareYearSchedule(storage, PREPARE);
+    return { ...storage, writeNew: (path, data) => (path.endsWith('.pdf') ? Promise.reject(new Error('disk full')) : storage.writeNew(path, data)) };
+  }
+
+  it('with the PDF write failing, reports the month issued once and stops', async () => {
+    const storage = await failingPdf();
+
+    const result = await issueDueMonths(storage, 'acme-2030', TODAY);
+
+    expect(result.issued.map((month) => [month.period, month.number])).toEqual([['2030-01', '2030-001']]);
+    expect(result.issued[0]?.errors?.[0]?.message).toContain('reprint');
+    expect(result.failed).toBeNull();
+    expect(result.remaining).toEqual(['2030-02']);
+  });
+
+  it('with the PDF write failing, the issued month can no longer be edited', async () => {
+    const storage = await failingPdf();
+    await issueDueMonths(storage, 'acme-2030', TODAY);
+
+    const attempt = editScheduleMonth(storage, 'acme-2030', '2030-01', [{ description: 'x', amount: '1' }]);
+
+    await expect(attempt).rejects.toMatchObject({ errors: [{ path: 'months.2030-01' }] });
+  });
+
+  it('with the schedule save failing, lists the month as issued and never as failed', async () => {
+    const memory = makeStorage();
+    await prepareYearSchedule(memory, PREPARE);
+    const storage: InvoiceStorage = { ...memory, replace: () => Promise.reject(new Error('disk full')) };
+
+    const result = await issueDueMonths(storage, 'acme-2030', TODAY);
+
+    expect(result.issued.map((month) => month.period)).toEqual(['2030-01']);
+    expect(result.issued[0]?.errors?.[0]?.message).toContain('disk full');
+    expect(result.failed).toBeNull();
+  });
+
+  it('with the schedule file behind a record dated the next year, an edit of that month is refused', async () => {
+    const storage = makeStorage();
+    await prepareYearSchedule(storage, PREPARE);
+    const lines = [{ description: 'x', amount: '1' }];
+    await issueInvoice(storage, { clientId: 'acme', period: '2030-01', date: '2031-02-05', amounts: [], lines, draft: false }, { render: fakePdf, schedule: { id: 'acme-2030', period: '2030-01' } });
+
+    const attempt = editScheduleMonth(storage, 'acme-2030', '2030-01', lines);
+
+    await expect(attempt).rejects.toMatchObject({ errors: [{ path: 'months.2030-01' }] });
   });
 });
 

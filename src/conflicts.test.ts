@@ -82,6 +82,7 @@ describe('findFolderConflicts AC-11', () => {
   it('with an invoice and a credit note of equal digits, reports no duplicate', async () => {
     const storage = await issuedStorage();
     await storage.writeNew('invoices/2030/CN-2030-001/invoice.json', record('CN-2030-001'));
+    await storage.writeNew('invoices/2030/CN-2030-001/CN-2030-001.pdf', 'x');
 
     const conflicts = await findFolderConflicts(storage, '2030');
 
@@ -129,6 +130,30 @@ describe('findFolderConflicts AC-11', () => {
     const conflicts = await findFolderConflicts(storage, '2030');
 
     expect(conflicts).toEqual([{ kind: FolderConflictKind.SyncCopy, path: '2030/2030-001 (1).json' }]);
+  });
+});
+
+describe('findFolderConflicts on a schedule month billed twice', () => {
+  const MONTH = { render: fakePdf, schedule: { id: 'acme-2030', period: '2030-01' } };
+
+  it('with two records for one schedule month, reports the second', async () => {
+    const storage = makeStorage();
+    await issueInvoice(storage, REQUEST_2030, MONTH);
+    await issueInvoice(storage, REQUEST_2030, MONTH);
+
+    const conflicts = await findFolderConflicts(storage, '2030');
+
+    expect(conflicts).toEqual([{ kind: FolderConflictKind.DuplicateScheduleMonth, path: 'invoices/2030/2030-002/invoice.json' }]);
+  });
+
+  it('with a month billed twice, the second can still be credited', async () => {
+    const storage = makeStorage();
+    await issueInvoice(storage, REQUEST_2030, MONTH);
+    await issueInvoice(storage, REQUEST_2030, MONTH);
+
+    const credit = await issueCreditNote(storage, { invoiceNumber: '2030-002', date: '2030-10-09', reason: 'billed twice' }, RENDER);
+
+    expect(credit.number).toBe('CN-2030-001');
   });
 });
 
