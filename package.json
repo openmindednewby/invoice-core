@@ -1,0 +1,72 @@
+{
+  "name": "@dloizides/invoice-core",
+  "version": "0.0.0",
+  "description": "Local-first invoice core: money, gap-free numbering, validation, VAT rules, JSON layouts, pdfmake rendering with Greek text, yearly schedules, credit notes and quarter CSV export, over a pluggable storage interface.",
+  "keywords": [
+    "invoice",
+    "local-first",
+    "pdf",
+    "pdfmake",
+    "credit-note",
+    "greek"
+  ],
+  "author": "dloizides",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/openmindednewby/invoice-core.git"
+  },
+  "homepage": "https://github.com/openmindednewby/invoice-core#readme",
+  "bugs": {
+    "url": "https://github.com/openmindednewby/invoice-core/issues"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsup",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "security:audit": "npm audit --audit-level=high",
+    "prepublishOnly": "npm run clean && npm run build && npm run test"
+  },
+  "dependencies": {
+    "pdfmake": "0.2.12"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-plugin-sonarjs": "^3.0.7",
+    "pdfjs-dist": "^4.10.38",
+    "rimraf": "^5.0.10",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
