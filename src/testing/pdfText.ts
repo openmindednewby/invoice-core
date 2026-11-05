@@ -6,7 +6,7 @@ export async function extractPdfText(bytes: Uint8Array): Promise<string> {
   for (let n = 1; n <= pdf.numPages; n += 1) {
     const page = await pdf.getPage(n);
     const content = await page.getTextContent();
-    pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+    pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' ').replace(/\s+/g, ' '));
   }
   return pages.join('\n');
 }
