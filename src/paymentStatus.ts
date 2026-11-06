@@ -1,31 +1,20 @@
-import { invoiceDir, readJsonFile, toJson } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { readInvoice } from './issue';
 import { PaymentState } from './PaymentState';
 import { addDays } from './period';
+import { readStatusFile, updateStatusFile } from './statusFile';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { InvoiceRecord } from './types';
 import { isRealDate } from './validate';
 
-const STATUS_LOCK = 'invoice-status';
-
 export interface PaymentStatus {
   paidOn: string | null;
 }
 
-function statusPath(number: string): string {
-  return `${invoiceDir(number)}/status.json`;
-}
-
 /** Reads an invoice's payment status from its status.json; no file means unpaid. */
 export async function readPaymentStatus(storage: InvoiceStorage, number: string): Promise<PaymentStatus> {
-  const path = statusPath(number);
-  if ((await storage.readText(path)) === null) {
-    return { paidOn: null };
-  }
-  const { paidOn } = await readJsonFile<{ paidOn?: unknown }>(storage, path, 'status');
-  return { paidOn: typeof paidOn === 'string' ? paidOn : null };
+  return { paidOn: (await readStatusFile(storage, number)).paidOn ?? null };
 }
 
 /** Records a payment date in status.json; the issued record is never touched. */
@@ -40,13 +29,12 @@ export async function markPaid(storage: InvoiceStorage, number: string, paidOn: 
   if (paidOn < record.request.date) {
     throw new InvoiceError([{ path: 'paidOn', message: `must not be before the invoice date ${record.request.date}` }]);
   }
-  const payment: PaymentStatus = { paidOn };
-  await storage.withLock(STATUS_LOCK, () => storage.replace(statusPath(number), toJson(payment)));
+  await updateStatusFile(storage, number, (status) => ({ ...status, paidOn }));
 }
 
-/** Removes a recorded payment; the issued record is never touched. */
+/** Removes a recorded payment and keeps the sent date; the issued record is never touched. */
 export async function markUnpaid(storage: InvoiceStorage, number: string): Promise<void> {
-  await storage.withLock(STATUS_LOCK, () => storage.remove(statusPath(number)));
+  await updateStatusFile(storage, number, ({ paidOn: _paidOn, ...rest }) => rest);
 }
 
 /** Says whether an invoice is paid, unpaid or overdue today; overdue starts the day after the due date. */

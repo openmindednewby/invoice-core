@@ -6,6 +6,7 @@ import type { ScheduleRef } from './types';
 
 const RECORD_FILE = 'invoice.json';
 const STATUS_FILE = 'status.json';
+const EDITS_FILE = 'edits.json';
 const LEGACY_FILE = /^(\d{4}-\d+)\.(json|pdf)$/;
 const FIXED_BY_REPRINT_OR_CREDIT = new Set([FolderConflictKind.MissingPdf, FolderConflictKind.DuplicateScheduleMonth]);
 
@@ -81,7 +82,7 @@ async function recordConflicts(storage: InvoiceStorage, scan: LayoutScan, dir: s
 
 async function scanNumberFolder(storage: InvoiceStorage, scan: LayoutScan, dir: string, number: string): Promise<void> {
   const files = (await storage.list(dir)).filter((name) => !isOsFile(name));
-  const allowed = new Set([RECORD_FILE, STATUS_FILE, `${number}.pdf`]);
+  const allowed = new Set([RECORD_FILE, STATUS_FILE, EDITS_FILE, `${number}.pdf`]);
   scan.conflicts.push(...files.filter((name) => !allowed.has(name)).map((name) => ({ kind: FolderConflictKind.SyncCopy, path: `${dir}/${name}` })));
   const text = await storage.readText(`${dir}/${RECORD_FILE}`);
   if (text === null) {

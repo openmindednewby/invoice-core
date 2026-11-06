@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- `editInvoice` edits an issued invoice that was not sent: same number, record and PDF replaced in place, each edit logged in `edits.json` (`readEditLog`, `isEdited`). Number and kind cannot be edited, the date stays in the number's year, and an invoice with a credit note or a sent date is refused (`InvoiceSentError`, `isInvoiceSentError`).
+- `markSent`, `markUnsent` and `readSentStatus` keep a sent date in `status.json`; `markUnsent` is refused while the invoice is paid.
+- `markPaid` and `markUnpaid` merge into `status.json`, so the sent date survives them.
+- `edits.json` is no longer reported as a sync-copy conflict.
+
 ## 0.3.0
 
 - A number folder left empty by a failed write no longer uses up its number; the retry takes it.
