@@ -1,4 +1,5 @@
 import { LayoutAlign } from './LayoutAlign';
+import { LayoutStyle } from './LayoutStyle';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { FieldError, InvoiceRequest, Parties } from './types';
@@ -7,20 +8,22 @@ const SAFE_NAME = /^[\w-]+$/;
 const HEX_COLOUR = /^#[0-9a-fA-F]{6}$/;
 const NUMBER_RANGES: Record<string, [number, number]> = { pageMargin: [10, 80], bodySize: [6, 14], titleSize: [10, 40], logoWidth: [20, 240] };
 const COLOUR_KEYS = ['accent', 'muted', 'band'];
-const ALLOWED_KEYS = new Set(['name', 'titleAlign', ...COLOUR_KEYS, ...Object.keys(NUMBER_RANGES)]);
+const ALLOWED_KEYS = new Set(['name', 'titleAlign', 'style', ...COLOUR_KEYS, ...Object.keys(NUMBER_RANGES)]);
+const STYLES: unknown[] = [undefined, LayoutStyle.Plain, LayoutStyle.Boxed];
 
 /** The name a request uses when neither it, the client nor the company picks a layout. */
-export const DEFAULT_LAYOUT = 'classic';
+export const DEFAULT_LAYOUT = 'standard';
 
 export interface InvoiceLayout {
   name: string; pageMargin: number; bodySize: number; titleSize: number; logoWidth: number;
-  accent: string; muted: string; band: string; titleAlign: LayoutAlign;
+  accent: string; muted: string; band: string; titleAlign: LayoutAlign; style?: LayoutStyle;
 }
 
 /** The layouts every folder can use; a file in layouts/ overrides them by name. */
 export const BUILT_IN_LAYOUTS = {
   classic: { name: 'classic', pageMargin: 40, bodySize: 9.5, titleSize: 22, logoWidth: 90, accent: '#1F3A5F', muted: '#666666', band: '#E4ECF5', titleAlign: LayoutAlign.Right },
   compact: { name: 'compact', pageMargin: 28, bodySize: 8.5, titleSize: 16, logoWidth: 60, accent: '#2F4F4F', muted: '#5F5F5F', band: '#E8EFEE', titleAlign: LayoutAlign.Left },
+  standard: { name: 'standard', pageMargin: 48, bodySize: 9.5, titleSize: 22, logoWidth: 90, accent: '#1F3A5F', muted: '#666666', band: '#E4ECF5', titleAlign: LayoutAlign.Right, style: LayoutStyle.Boxed },
 } as const satisfies Record<string, InvoiceLayout>;
 
 const BUILT_IN_BY_NAME: ReadonlyMap<string, InvoiceLayout> = new Map(Object.entries(BUILT_IN_LAYOUTS));
@@ -32,6 +35,9 @@ function fieldErrors(data: Record<string, unknown>): FieldError[] {
   }
   if (data.titleAlign !== LayoutAlign.Left && data.titleAlign !== LayoutAlign.Right) {
     errors.push({ path: 'layout.titleAlign', message: 'must be left or right' });
+  }
+  if (!STYLES.includes(data.style)) {
+    errors.push({ path: 'layout.style', message: 'must be plain or boxed' });
   }
   COLOUR_KEYS.filter((key) => typeof data[key] !== 'string' || !HEX_COLOUR.test(data[key])).forEach((key) => errors.push({ path: `layout.${key}`, message: 'must be a colour like #1F3A5F' }));
   Object.entries(NUMBER_RANGES).forEach(([key, [min, max]]) => {

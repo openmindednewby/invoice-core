@@ -1,28 +1,17 @@
 import type { InvoiceLayout } from './layouts';
-import { BLANK_MARK } from './view';
+import { LayoutStyle } from './LayoutStyle';
+import { boxedItems, boxedMeta, boxedTotals, headerRule } from './pdfBoxed';
+import { amountHead, GRAND_SIZE_GAIN, labelled, SECTION_GAP, value, WHITE } from './pdfCells';
+import type { PdfNode } from './pdfCells';
 import type { InvoiceView } from './view';
 
-const WHITE = '#FFFFFF';
-const BLANK_BACKGROUND = '#FFF2B3';
 const WATERMARK_COLOUR = '#A00000';
 const WATERMARK_OPACITY = 0.13;
 const FOOT_SIZE_DROP = 1.5;
 const COMPANY_SIZE_GAIN = 3;
-const GRAND_SIZE_GAIN = 1;
-const SECTION_GAP = 14;
 const PAGE_SIZE = 'A4';
 
-type PdfNode = Record<string, unknown>;
-
 export type PdfLogo = { image: string } | { svg: string };
-
-function value(text: string): PdfNode {
-  return text === BLANK_MARK ? { text, background: BLANK_BACKGROUND } : { text };
-}
-
-function labelled(label: string, text: string): PdfNode {
-  return { text: [`${label}: `, value(text)] };
-}
 
 function titleBlock(view: InvoiceView, layout: InvoiceLayout): PdfNode {
   const [en, el] = view.creditNote ? ['CREDIT NOTE', 'ΠΙΣΤΩΤΙΚΟ ΣΗΜΕΙΩΜΑ'] : ['INVOICE', 'ΤΙΜΟΛΟΓΙΟ'];
@@ -76,10 +65,10 @@ function meta(view: InvoiceView, layout: InvoiceLayout): PdfNode {
 function items(view: InvoiceView, layout: InvoiceLayout): PdfNode {
   const head = [
     { text: 'DESCRIPTION / ΠΕΡΙΓΡΑΦΗ', bold: true, color: WHITE, fillColor: layout.accent },
-    { text: 'AMOUNT / ΠΟΣΟ (€)', bold: true, color: WHITE, fillColor: layout.accent, alignment: 'right' },
+    amountHead(layout.accent),
   ];
   const rows = view.rows.map((row) => [value(row.description), { text: row.amount, alignment: 'right' }]);
-  return { table: { headerRows: 1, widths: ['*', 'auto'], body: [head, ...rows] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, SECTION_GAP] };
+  return { id: 'items', table: { headerRows: 1, widths: ['*', 'auto'], body: [head, ...rows] }, layout: 'lightHorizontalLines', margin: [0, 0, 0, SECTION_GAP] };
 }
 
 function totals(view: InvoiceView, layout: InvoiceLayout): PdfNode {
@@ -98,11 +87,12 @@ function payment(view: InvoiceView, layout: InvoiceLayout): PdfNode[] {
     return view.reason ? [labelled('Reason / Αιτιολογία', view.reason)] : [];
   }
   const rows = [
-    ['Bank / Τράπεζα', view.company.bank], ['IBAN', view.company.iban], ['BIC / SWIFT', view.company.bic],
+    ['Bank / Τράπεζα', view.company.bank], ['Account Name / Δικαιούχος', view.company.name], ['IBAN', view.company.iban], ['BIC / SWIFT', view.company.bic],
     ['Due date / Ημ. Πληρωμής', view.dueDate], ['Reference / Αιτιολογία', view.number],
   ];
+  const headingColour = layout.style === LayoutStyle.Boxed ? layout.muted : layout.accent;
   return [
-    { text: 'PAYMENT DETAILS / ΣΤΟΙΧΕΙΑ ΠΛΗΡΩΜΗΣ', bold: true, color: layout.accent },
+    { text: 'PAYMENT DETAILS / ΣΤΟΙΧΕΙΑ ΠΛΗΡΩΜΗΣ', bold: true, color: headingColour },
     { table: { widths: ['auto', '*'], body: rows.map(([label = '', text = '']) => [{ text: label, color: layout.muted }, value(text)]) }, layout: 'noBorders' },
   ];
 }
@@ -120,6 +110,13 @@ export function buildPdfDefinition(view: InvoiceView, layout: InvoiceLayout, log
     defaultStyle: { fontSize: layout.bodySize },
     ...(view.draft ? { watermark: { text: 'DRAFT', color: WATERMARK_COLOUR, opacity: WATERMARK_OPACITY, bold: true } } : {}),
     footer: { text: foot, alignment: 'center', color: layout.muted, fontSize: layout.bodySize - FOOT_SIZE_DROP },
-    content: [header(view, layout, logo), meta(view, layout), items(view, layout), totals(view, layout), ...note(view, layout), ...payment(view, layout)],
+    content: [...body(view, layout, logo), ...note(view, layout), ...payment(view, layout)],
   };
+}
+
+function body(view: InvoiceView, layout: InvoiceLayout, logo?: PdfLogo): PdfNode[] {
+  if (layout.style === LayoutStyle.Boxed) {
+    return [header(view, layout, logo), headerRule(layout), boxedMeta(view, layout), boxedItems(view, layout), boxedTotals(view, layout)];
+  }
+  return [header(view, layout, logo), meta(view, layout), items(view, layout), totals(view, layout)];
 }

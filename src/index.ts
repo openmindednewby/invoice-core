@@ -16,6 +16,7 @@ export { InvoiceSentError, isInvoiceSentError } from './InvoiceSentError';
 export { issueInvoice, listIssued, NUMBER_LOCK, readInvoice, renderDraftPdf, reprintInvoice } from './issue';
 export type { IssueOptions, PdfRender } from './issue';
 export { LayoutAlign } from './LayoutAlign';
+export { LayoutStyle } from './LayoutStyle';
 export { BUILT_IN_LAYOUTS, DEFAULT_LAYOUT, parseLayout, resolveLayout, selectLayoutName } from './layouts';
 export type { InvoiceLayout } from './layouts';
 export { computeTotals, expandDescription, resolveLines } from './lines';

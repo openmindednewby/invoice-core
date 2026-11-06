@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- New built-in layout `standard`, now `DEFAULT_LAYOUT`: accent rule under the header, bill-to and details in one framed shaded box (muted labels, bold values, period Greek first), bordered line table with three empty rows, totals in the amount column with a framed shaded total. Reverse charge note, due date and reference stay.
+- `InvoiceLayout.style` (`LayoutStyle.Plain` or `LayoutStyle.Boxed`, optional, plain when absent).
+- Every layout prints "Account Name / Δικαιούχος" (the company name) in the payment details and keeps the AMOUNT head on one line.
+
 ## 0.4.0
 
 - `editInvoice` edits an issued invoice that was not sent: same number, record and PDF replaced in place, each edit logged in `edits.json` (`readEditLog`, `isEdited`). Number and kind cannot be edited, the date stays in the number's year, and an invoice with a credit note or a sent date is refused (`InvoiceSentError`, `isInvoiceSentError`).

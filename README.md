@@ -33,7 +33,7 @@ invoices/<year>/<number>/status.json      payment date; the only file here that 
 
 ## Layouts
 
-A layout is plain data (`InvoiceLayout`): margins, sizes, three colours, title alignment. `parseLayout` refuses unknown fields, so a layout cannot carry a script. An unknown name is refused and named.
+A layout is plain data (`InvoiceLayout`): margins, sizes, three colours, title alignment, optional `style` (`plain` or `boxed`). Built in: `standard` (boxed, the default), `classic`, `compact`. `parseLayout` refuses unknown fields, so a layout cannot carry a script. An unknown name is refused and named.
 
 ## Rendering
 
