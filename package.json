@@ -1,6 +1,6 @@
 {
   "name": "@dloizides/invoice-core",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Local-first invoice core: money, gap-free numbering, validation, VAT rules, JSON layouts, pdfmake rendering with Greek text, yearly schedules, credit notes and quarter CSV export, over a pluggable storage interface.",
   "keywords": [
     "invoice",
