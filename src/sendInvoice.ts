@@ -3,9 +3,9 @@ import { fillEmailTemplate } from './emailTemplates';
 import { pdfPath } from './folder';
 import { readInvoice } from './issue';
 import { RecipientKind } from './RecipientKind';
-import { appendSend, readSendLog, sha256Hex } from './sendLog';
+import { appendSend, firstSendDate, readSendLog, sha256Hex } from './sendLog';
 import type { SendEntry } from './sendLog';
-import { assertSentDate, markSent, readSentStatus } from './sentStatus';
+import { assertSentDate, markFirstSent, readSentStatus } from './sentStatus';
 import { SentNotRecordedError } from './SentNotRecordedError';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
@@ -34,7 +34,7 @@ export interface SendInvoiceResult {
   messageId: string; sentOn: string; pdfSha256: string; addedContacts: string[]; contactsUpdated: boolean;
 }
 
-interface SendReady { record: InvoiceRecord; pdf: Uint8Array; firstSentOn: string | null; }
+interface SendReady { record: InvoiceRecord; pdf: Uint8Array; sentDate: string; }
 
 function addressErrors(field: string, addresses: string[]): FieldError[] {
   return addresses.flatMap((address, index) => (isValidEmail(address) ? [] : [{ path: `${field}.${index}`, message: INVALID_EMAIL_MESSAGE }]));
@@ -59,6 +59,15 @@ function checkInput(input: SendInvoiceInput): void {
   }
 }
 
+function dateToMark(record: InvoiceRecord, sends: SendEntry[], today: string): string {
+  const logged = firstSendDate(sends);
+  if (logged === null) {
+    assertSentDate(record, today);
+    return today;
+  }
+  return logged < record.request.date ? record.request.date : logged;
+}
+
 async function readyToSend(storage: InvoiceStorage, input: SendInvoiceInput): Promise<SendReady> {
   checkInput(input);
   const record = await readInvoice(storage, input.number);
@@ -66,26 +75,30 @@ async function readyToSend(storage: InvoiceStorage, input: SendInvoiceInput): Pr
   if (pdf === null || pdf.length === 0) {
     throw new InvoiceError([{ path: 'pdf', message: `${input.number} has no PDF: ${pdfPath(input.number)}` }]);
   }
-  await readSendLog(storage, input.number);
-  const { sentOn: firstSentOn } = await readSentStatus(storage, input.number);
-  if (firstSentOn === null) {
-    assertSentDate(record, input.today);
-  }
-  return { record, pdf, firstSentOn };
+  const sends = await readSendLog(storage, input.number);
+  const { sentOn } = await readSentStatus(storage, input.number);
+  return { record, pdf, sentDate: sentOn ?? dateToMark(record, sends, input.today) };
 }
 
-async function recordSend(storage: InvoiceStorage, input: SendInvoiceInput, entry: SendEntry, firstSentOn: string | null): Promise<string> {
-  let logged = false;
+async function succeeded(work: () => Promise<unknown>): Promise<boolean> {
   try {
-    await appendSend(storage, input.number, entry);
-    logged = true;
-    if (firstSentOn === null) {
-      await markSent(storage, input.number, input.today);
-    }
+    await work();
+    return true;
   } catch {
-    throw new SentNotRecordedError(input.number, entry.messageId, logged);
+    return false;
   }
-  return firstSentOn ?? input.today;
+}
+
+async function recordSend(storage: InvoiceStorage, number: string, entry: SendEntry, sentDate: string): Promise<string> {
+  let standing = sentDate;
+  const logged = await succeeded(() => appendSend(storage, number, entry));
+  const marked = await succeeded(async () => {
+    standing = await markFirstSent(storage, number, sentDate);
+  });
+  if (!logged || !marked) {
+    throw new SentNotRecordedError(number, entry.messageId, { logged, marked });
+  }
+  return standing;
 }
 
 async function rememberRecipients(storage: InvoiceStorage, clientId: string, input: SendInvoiceInput): Promise<{ addedContacts: string[]; contactsUpdated: boolean }> {
@@ -101,13 +114,13 @@ async function rememberRecipients(storage: InvoiceStorage, clientId: string, inp
 }
 
 async function sendOnce(storage: InvoiceStorage, input: SendInvoiceInput, sender: MailSender): Promise<SendInvoiceResult> {
-  const { record, pdf, firstSentOn } = await readyToSend(storage, input);
+  const { record, pdf, sentDate } = await readyToSend(storage, input);
   const { subject, body } = fillEmailTemplate({ subject: input.subject, body: input.body }, record);
   const pdfSha256 = await sha256Hex(pdf);
   const { from, to, cc, at, number } = input;
   const attachment = { filename: `${number}.pdf`, contentType: PDF_CONTENT_TYPE, data: pdf };
   const { messageId } = await sender.send({ from, to, cc, subject, body, attachment });
-  const sentOn = await recordSend(storage, input, { at, from, to, cc, subject, messageId, pdfSha256 }, firstSentOn);
+  const sentOn = await recordSend(storage, number, { at, from, to, cc, subject, messageId, pdfSha256 }, sentDate);
   return { messageId, sentOn, pdfSha256, ...(await rememberRecipients(storage, record.request.clientId, input)) };
 }
 

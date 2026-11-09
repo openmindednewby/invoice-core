@@ -9,6 +9,7 @@ import { isBlank } from './validate';
 export const CONTACTS_LOCK = 'invoice-contacts';
 export const INVALID_EMAIL_MESSAGE = 'must be a valid email address';
 
+const PRINTABLE_ASCII = /^[!-~]+$/;
 const EMAIL_SHAPE = /^[^\s@<>,;"]+@[^\s@<>,;".]+(\.[^\s@<>,;".]+)+$/;
 
 export interface Contact { name: string; email: string; role: string; recipient: RecipientKind; }
@@ -42,7 +43,7 @@ function contactErrors(contacts: Contact[]): FieldError[] {
 
 /** Whether a text is a single email address safe to put in a mail header. */
 export function isValidEmail(address: string): boolean {
-  return EMAIL_SHAPE.test(address);
+  return PRINTABLE_ASCII.test(address) && EMAIL_SHAPE.test(address);
 }
 
 /** Reads a client's people; no file means none. */

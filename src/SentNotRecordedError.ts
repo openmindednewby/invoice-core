@@ -1,14 +1,22 @@
 import { InvoiceError } from './types';
 
+export interface RecordOutcome { logged: boolean; marked: boolean; }
+
+function failedSteps({ logged, marked }: RecordOutcome): string {
+  return [...(logged ? [] : ['logged']), ...(marked ? [] : ['marked sent'])].join(' or ');
+}
+
 export class SentNotRecordedError extends InvoiceError {
   readonly messageId: string;
   readonly logged: boolean;
+  readonly marked: boolean;
 
-  constructor(number: string, messageId: string, logged: boolean) {
-    super([{ path: 'send', message: `${number} was sent as message ${messageId} but ${logged ? 'could not be marked sent' : 'could not be logged'}; do not send it again` }]);
+  constructor(number: string, messageId: string, outcome: RecordOutcome) {
+    super([{ path: 'send', message: `${number} was sent as message ${messageId} but could not be ${failedSteps(outcome)}; do not send it again` }]);
     this.name = 'SentNotRecordedError';
     this.messageId = messageId;
-    this.logged = logged;
+    this.logged = outcome.logged;
+    this.marked = outcome.marked;
   }
 }
 

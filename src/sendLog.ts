@@ -1,12 +1,14 @@
-import { invoiceDir, pdfPath, readJsonFile, toJson } from './folder';
+import { invoiceDir, NUMBER_SHAPE, pdfPath, readJsonFile, toJson } from './folder';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
+import { isRealDate } from './validate';
 
 export const SENDS_FILE = 'sends.json';
 export const SEND_LOG_LOCK = 'invoice-sends';
 
 const HEX_RADIX = 16;
 const HEX_BYTE_LENGTH = 2;
+const ISO_DATE_LENGTH = 10;
 
 export interface SendEntry { at: string; from: string; to: string[]; cc: string[]; subject: string; messageId: string; pdfSha256: string; }
 
@@ -17,6 +19,9 @@ function sendsPath(number: string): string {
 }
 
 async function readRawSends(storage: InvoiceStorage, number: string): Promise<unknown[]> {
+  if (!NUMBER_SHAPE.test(number)) {
+    throw new InvoiceError([{ path: 'invoiceNumber', message: 'must look like 2030-001 or CN-2030-001' }]);
+  }
   const path = sendsPath(number);
   if ((await storage.readText(path)) === null) {
     return [];
@@ -37,6 +42,13 @@ export async function sha256Hex(bytes: Uint8Array): Promise<string> {
 /** Reads an invoice's sends, oldest first; none if never sent. */
 export async function readSendLog(storage: InvoiceStorage, number: string): Promise<SendEntry[]> {
   return (await readRawSends(storage, number)) as SendEntry[];
+}
+
+/** Returns the UTC date of the earliest logged send as YYYY-MM-DD; null with none. */
+export function firstSendDate(sends: SendEntry[]): string | null {
+  const dates = sends.map(({ at }) => String(at).slice(0, ISO_DATE_LENGTH)).filter((date) => isRealDate(date));
+  dates.sort((a, b) => a.localeCompare(b));
+  return dates[0] ?? null;
 }
 
 /** Adds one entry after the existing ones, which are kept exactly as stored; a broken log is refused, never replaced. */

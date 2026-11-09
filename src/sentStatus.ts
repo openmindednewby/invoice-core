@@ -28,6 +28,21 @@ export async function markSent(storage: InvoiceStorage, number: string, sentOn: 
   await updateStatusFile(storage, number, (status) => ({ ...status, sentOn }));
 }
 
+/** Records a sent date only if none is stored, and returns the date that stands. */
+export async function markFirstSent(storage: InvoiceStorage, number: string, sentOn: string): Promise<string> {
+  const record = await readInvoice(storage, number);
+  let standing = sentOn;
+  await updateStatusFile(storage, number, (status) => {
+    if (status.sentOn !== undefined) {
+      standing = status.sentOn;
+      return status;
+    }
+    assertSentDate(record, sentOn);
+    return { ...status, sentOn };
+  });
+  return standing;
+}
+
 /** Clears the sent date; refused once the invoice is paid. */
 export async function markUnsent(storage: InvoiceStorage, number: string): Promise<void> {
   await updateStatusFile(storage, number, (status) => {
