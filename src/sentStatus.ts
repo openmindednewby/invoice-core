@@ -1,5 +1,5 @@
 import { readInvoice } from './issue';
-import { readStatusFile, updateStatusFile } from './statusFile';
+import { readStatusFile, STATUS_LOCK, updateStatusFile, writeStatusFile } from './statusFile';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { InvoiceRecord } from './types';
@@ -31,16 +31,15 @@ export async function markSent(storage: InvoiceStorage, number: string, sentOn: 
 /** Records a sent date only if none is stored, and returns the date that stands. */
 export async function markFirstSent(storage: InvoiceStorage, number: string, sentOn: string): Promise<string> {
   const record = await readInvoice(storage, number);
-  let standing = sentOn;
-  await updateStatusFile(storage, number, (status) => {
+  return storage.withLock(STATUS_LOCK, async () => {
+    const status = await readStatusFile(storage, number);
     if (status.sentOn !== undefined) {
-      standing = status.sentOn;
-      return status;
+      return status.sentOn;
     }
     assertSentDate(record, sentOn);
-    return { ...status, sentOn };
+    await writeStatusFile(storage, number, { ...status, sentOn });
+    return sentOn;
   });
-  return standing;
 }
 
 /** Clears the sent date; refused once the invoice is paid. */
