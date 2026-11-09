@@ -102,10 +102,10 @@ async function recordSend(storage: InvoiceStorage, number: string, entry: SendEn
 }
 
 async function rememberRecipients(storage: InvoiceStorage, clientId: string, input: SendInvoiceInput): Promise<{ addedContacts: string[]; contactsUpdated: boolean }> {
-  const recipients = [
-    ...input.to.map((email) => ({ email, recipient: RecipientKind.To })),
-    ...input.cc.map((email) => ({ email, recipient: RecipientKind.Cc })),
-  ];
+  const ownAddress = input.from.toLowerCase();
+  const recipients = [...input.to, ...input.cc]
+    .filter((email) => email.toLowerCase() !== ownAddress)
+    .map((email) => ({ email, recipient: RecipientKind.Picked }));
   try {
     return { addedContacts: await addMissingContacts(storage, clientId, recipients), contactsUpdated: true };
   } catch {

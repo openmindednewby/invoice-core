@@ -22,7 +22,7 @@ function contactsPath(clientId: string): string {
 
 function isContact(value: unknown): value is Contact {
   const entry = value as Partial<Contact> | null;
-  const recipientKnown = entry?.recipient === RecipientKind.To || entry?.recipient === RecipientKind.Cc;
+  const recipientKnown = [RecipientKind.To, RecipientKind.Cc, RecipientKind.Picked].some((kind) => kind === entry?.recipient);
   return typeof entry?.name === 'string' && typeof entry.email === 'string' && typeof entry.role === 'string' && recipientKnown;
 }
 
