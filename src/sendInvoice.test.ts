@@ -253,6 +253,15 @@ describe('sendInvoice first sent date', () => {
     expect(result.sentOn).toBe('2030-10-08');
   });
 
+  it('with a sent date stored and a status write that would fail, resends with no recording error', async () => {
+    const storage = await issued();
+    await markSent(storage, '2030-001', '2030-10-09');
+
+    const result = await sendInvoice(failingOn(storage, STATUS_PATH), inputWith({ today: '2030-10-20' }), senderReturning('gmail-2'));
+
+    expect(result.sentOn).toBe('2030-10-09');
+  });
+
   it('with another tab marking it sent during the send, keeps that date', async () => {
     const storage = await issued();
     const sender: MailSender = {

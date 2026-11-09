@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { issueInvoice } from './issue';
 import { InvoiceSentError, isInvoiceSentError } from './InvoiceSentError';
 import { markPaid, markUnpaid, readPaymentStatus } from './paymentStatus';
-import { markSent, markUnsent, readSentStatus } from './sentStatus';
+import { markFirstSent, markSent, markUnsent, readSentStatus } from './sentStatus';
 import type { InvoiceStorage } from './storage';
 import { fakePdf, makeStorage, REQUEST } from './testing/fixtures';
 
@@ -57,6 +57,28 @@ describe('markSent AC-ED-4', () => {
     await markSent(storage, '2030-001', '2030-10-09');
 
     expect(await readPaymentStatus(storage, '2030-001')).toEqual({ paidOn: '2030-11-01' });
+  });
+});
+
+describe('markFirstSent', () => {
+  it('with a sent date stored, returns it and writes nothing', async () => {
+    const storage = await issued();
+    await markSent(storage, '2030-001', '2030-10-09');
+    const replace = vi.fn(() => Promise.reject(new Error('disk full')));
+
+    const standing = await markFirstSent({ ...storage, replace }, '2030-001', '2030-10-20');
+
+    expect(standing).toBe('2030-10-09');
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('with no sent date stored, records the given date and returns it', async () => {
+    const storage = await issued();
+
+    const standing = await markFirstSent(storage, '2030-001', '2030-10-20');
+
+    expect(standing).toBe('2030-10-20');
+    expect(await readSentStatus(storage, '2030-001')).toEqual({ sentOn: '2030-10-20' });
   });
 });
 
