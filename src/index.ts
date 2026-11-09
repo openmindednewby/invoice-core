@@ -1,11 +1,17 @@
 export { assertNoConflicts, findFolderConflicts } from './conflicts';
 export type { FolderConflict } from './conflicts';
+export { addMissingContacts, isValidEmail, readContacts, saveContacts } from './contacts';
+export type { Contact, NewRecipient } from './contacts';
 export { issueCreditNote } from './creditNote';
 export type { CreditNoteRequest } from './creditNote';
 export { editInvoice } from './editInvoice';
 export type { EditedInvoice, EditOptions, InvoiceChanges } from './editInvoice';
 export { EDITS_FILE, isEdited, readEditLog } from './editLog';
 export type { EditEntry } from './editLog';
+export {
+  BUILT_IN_EMAIL_TEMPLATES, EMAIL_PLACEHOLDERS, fillEmailTemplate, findUnknownPlaceholders, readEmailTemplate, readSenderAddress, removeEmailTemplate, saveEmailTemplate, saveSenderAddress,
+} from './emailTemplates';
+export type { EmailTemplate } from './emailTemplates';
 export { exportQuarterCsv } from './exportCsv';
 export { assertNotLegacy, ensureFormat, ensureIssuable, hasLegacyFiles, invoiceDir, migrateLegacyFolder, pdfPath, recordPath } from './folder';
 export type { MigrationResult } from './folder';
@@ -29,10 +35,16 @@ export { markPaid, markUnpaid, paymentStateOf, readPaymentStatus } from './payme
 export type { PaymentStatus } from './paymentStatus';
 export { PaymentState } from './PaymentState';
 export { loadLogo, renderInvoicePdf } from './pdf';
+export { RecipientKind } from './RecipientKind';
 export { addDays, displayDate, periodTexts } from './period';
 export { BUILT_IN_RULES } from './rules';
+export { sendInvoice } from './sendInvoice';
+export type { MailAttachment, MailMessage, MailSender, SendInvoiceInput, SendInvoiceResult } from './sendInvoice';
+export { appendSend, readSendHistory, readSendLog, SENDS_FILE, sha256Hex } from './sendLog';
+export type { SendEntry, SendHistoryEntry } from './sendLog';
 export { markSent, markUnsent, readSentStatus } from './sentStatus';
 export type { SentStatus } from './sentStatus';
+export { isSentNotRecordedError, SentNotRecordedError } from './SentNotRecordedError';
 export { editScheduleMonth, issueDueMonths, prepareYearSchedule, readSchedule } from './schedule';
 export type { InvoiceSchedule, IssueDueOptions, IssueDueResult, PrepareScheduleRequest, ScheduleMonth } from './schedule';
 export { isStorageExistsError, StorageExistsError } from './storage';

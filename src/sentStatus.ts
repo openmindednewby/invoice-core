@@ -2,6 +2,7 @@ import { readInvoice } from './issue';
 import { readStatusFile, updateStatusFile } from './statusFile';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
+import type { InvoiceRecord } from './types';
 import { isRealDate } from './validate';
 
 export interface SentStatus { sentOn: string | null; }
@@ -11,15 +12,19 @@ export async function readSentStatus(storage: InvoiceStorage, number: string): P
   return { sentOn: (await readStatusFile(storage, number)).sentOn ?? null };
 }
 
-/** Records the date an invoice was sent; from then on it cannot be edited. */
-export async function markSent(storage: InvoiceStorage, number: string, sentOn: string): Promise<void> {
+/** Refuses a sent date that is not real or falls before the invoice date. */
+export function assertSentDate(record: InvoiceRecord, sentOn: string): void {
   if (!isRealDate(sentOn)) {
     throw new InvoiceError([{ path: 'sentOn', message: 'must be a real date as YYYY-MM-DD' }]);
   }
-  const record = await readInvoice(storage, number);
   if (sentOn < record.request.date) {
     throw new InvoiceError([{ path: 'sentOn', message: `must not be before the invoice date ${record.request.date}` }]);
   }
+}
+
+/** Records the date an invoice was sent; from then on it cannot be edited. */
+export async function markSent(storage: InvoiceStorage, number: string, sentOn: string): Promise<void> {
+  assertSentDate(await readInvoice(storage, number), sentOn);
   await updateStatusFile(storage, number, (status) => ({ ...status, sentOn }));
 }
 

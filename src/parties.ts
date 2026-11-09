@@ -20,11 +20,16 @@ async function loadRule(storage: InvoiceStorage, id: string): Promise<VatRule> {
   return builtIn;
 }
 
-/** Reads the request's company, client and VAT rule, refusing if any is missing. */
-export async function loadParties(storage: InvoiceStorage, clientId: string): Promise<Parties> {
+/** Refuses a client id that could not be a single file name. */
+export function assertSafeClientId(clientId: string): void {
   if (!SAFE_ID.test(clientId)) {
     throw new InvoiceError([{ path: 'clientId', message: 'must hold only letters, digits, - and _' }]);
   }
+}
+
+/** Reads the request's company, client and VAT rule, refusing if any is missing. */
+export async function loadParties(storage: InvoiceStorage, clientId: string): Promise<Parties> {
+  assertSafeClientId(clientId);
   const company = await readJsonFile<Company>(storage, 'company.json', 'company');
   const client = await readJsonFile<Client>(storage, `clients/${clientId}.json`, 'client');
   return { company, client, rule: await loadRule(storage, client.vatRule) };

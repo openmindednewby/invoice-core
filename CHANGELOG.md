@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Contacts per client in `contacts/<clientId>.json`: `readContacts`, `saveContacts`, `addMissingContacts`, `isValidEmail`, `RecipientKind`.
+- Email templates in `email-templates/`, per kind with an optional per-client override, Greek built-ins (`BUILT_IN_EMAIL_TEMPLATES`), placeholders `{number}` `{period}` `{total}` `{dueDate}` `{clientName}` `{companyName}`; an unknown placeholder is refused. The sender address is stored in `email-templates/settings.json`.
+- `sendInvoice` sends an issued invoice through a `MailSender` port, appends to `sends.json` and marks it sent; a resend keeps the first sent date. `SentNotRecordedError` means the mail left but recording it failed.
+- `readSendHistory` flags a send whose PDF differs from today's file. `sends.json` is not reported as a sync-copy conflict.
+
 ## 0.5.0
 
 - New built-in layout `standard`, now `DEFAULT_LAYOUT`: accent rule under the header, bill-to and details in one framed shaded box (muted labels, bold values, period Greek first), bordered line table with three empty rows, totals in the amount column with a framed shaded total. Reverse charge note, due date and reference stay.

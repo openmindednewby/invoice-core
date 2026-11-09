@@ -1,5 +1,6 @@
 import { isOsFile, numberYear, NUMBER_SHAPE } from './folder';
 import { FolderConflictKind } from './FolderConflictKind';
+import { SENDS_FILE } from './sendLog';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
 import type { ScheduleRef } from './types';
@@ -82,7 +83,7 @@ async function recordConflicts(storage: InvoiceStorage, scan: LayoutScan, dir: s
 
 async function scanNumberFolder(storage: InvoiceStorage, scan: LayoutScan, dir: string, number: string): Promise<void> {
   const files = (await storage.list(dir)).filter((name) => !isOsFile(name));
-  const allowed = new Set([RECORD_FILE, STATUS_FILE, EDITS_FILE, `${number}.pdf`]);
+  const allowed = new Set([RECORD_FILE, STATUS_FILE, EDITS_FILE, SENDS_FILE, `${number}.pdf`]);
   scan.conflicts.push(...files.filter((name) => !allowed.has(name)).map((name) => ({ kind: FolderConflictKind.SyncCopy, path: `${dir}/${name}` })));
   const text = await storage.readText(`${dir}/${RECORD_FILE}`);
   if (text === null) {

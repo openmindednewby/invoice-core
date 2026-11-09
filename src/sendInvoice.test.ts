@@ -4,36 +4,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { readContacts, saveContacts } from './contacts';
 import { issueCreditNote } from './creditNote';
 import { editInvoice } from './editInvoice';
-import { issueInvoice } from './issue';
 import { RecipientKind } from './RecipientKind';
 import { readSendLog } from './sendLog';
-import { isSentNotRecordedError, sendInvoice } from './sendInvoice';
-import type { MailMessage, MailSender, SendInvoiceInput } from './sendInvoice';
+import { sendInvoice } from './sendInvoice';
+import type { MailSender } from './sendInvoice';
 import { readSentStatus } from './sentStatus';
+import { isSentNotRecordedError } from './SentNotRecordedError';
 import type { InvoiceStorage } from './storage';
-import { fakePdf, makeStorage, REQUEST } from './testing/fixtures';
+import { fakePdf } from './testing/fixtures';
+import { inputWith, issued, senderReturning } from './testing/sendFixtures';
 
 const DIR = 'invoices/2030/2030-001';
 const SENDS_PATH = `${DIR}/sends.json`;
 const STATUS_PATH = `${DIR}/status.json`;
-const PDF_PATH = `${DIR}/2030-001.pdf`;
-
-async function issued(): Promise<InvoiceStorage> {
-  const storage = makeStorage();
-  await issueInvoice(storage, { ...REQUEST, date: '2030-10-08' }, { render: fakePdf });
-  return storage;
-}
-
-function inputWith(overrides: Partial<SendInvoiceInput> = {}): SendInvoiceInput {
-  return {
-    number: '2030-001', from: 'me@example.test', to: ['ada@example.test'], cc: [], subject: 'Subject', body: 'Body',
-    at: '2030-10-09T08:00:00.000Z', today: '2030-10-09', ...overrides,
-  };
-}
-
-function senderReturning(messageId: string): MailSender & { send: ReturnType<typeof vi.fn> } {
-  return { send: vi.fn((_message: MailMessage) => Promise.resolve({ messageId })) };
-}
 
 function failingOn(storage: InvoiceStorage, failPath: string): InvoiceStorage {
   return { ...storage, replace: (path, data) => (path === failPath ? Promise.reject(new Error('disk full')) : storage.replace(path, data)) };
@@ -233,78 +216,5 @@ describe('sendInvoice one send in flight', () => {
     const again = sendInvoice(storage, inputWith(), senderReturning('gmail-2'));
 
     await expect(again).resolves.toMatchObject({ messageId: 'gmail-2' });
-  });
-});
-
-describe('sendInvoice refuses before sending', () => {
-  it.each<[string, Partial<SendInvoiceInput>, string]>([
-    ['an invalid sender', { from: 'nope' }, 'from'],
-    ['no recipient', { to: [] }, 'to'],
-    ['an invalid To address', { to: ['ada@example.test', 'nope'] }, 'to.1'],
-    ['an invalid Cc address', { cc: ['nope'] }, 'cc.0'],
-    ['a blank subject', { subject: '  ' }, 'subject'],
-    ['a subject of two lines', { subject: 'One\r\nBcc: x@example.test' }, 'subject'],
-  ])('with %s, names the field and sends nothing', async (_name, overrides, path) => {
-    const storage = await issued();
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith(overrides), sender);
-
-    await expect(send).rejects.toMatchObject({ errors: [expect.objectContaining({ path })] });
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it('with a missing PDF, refuses and sends nothing', async () => {
-    const storage = await issued();
-    await storage.remove(PDF_PATH);
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith(), sender);
-
-    await expect(send).rejects.toMatchObject({ errors: [expect.objectContaining({ path: 'pdf' })] });
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it('with an empty PDF, refuses and sends nothing', async () => {
-    const storage = await issued();
-    await storage.replace(PDF_PATH, new Uint8Array());
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith(), sender);
-
-    await expect(send).rejects.toMatchObject({ errors: [expect.objectContaining({ path: 'pdf' })] });
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it('with a first send dated before the invoice date, refuses and sends nothing', async () => {
-    const storage = await issued();
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith({ today: '2030-10-07' }), sender);
-
-    await expect(send).rejects.toThrow('sentOn');
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it('with a broken send log, refuses and sends nothing', async () => {
-    const storage = await issued();
-    await storage.writeNew(SENDS_PATH, 'not json');
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith(), sender);
-
-    await expect(send).rejects.toThrow(SENDS_PATH);
-    expect(sender.send).not.toHaveBeenCalled();
-  });
-
-  it('with a broken status file, refuses and sends nothing', async () => {
-    const storage = await issued();
-    await storage.writeNew(STATUS_PATH, 'not json');
-    const sender = senderReturning('gmail-1');
-
-    const send = sendInvoice(storage, inputWith(), sender);
-
-    await expect(send).rejects.toThrow(STATUS_PATH);
-    expect(sender.send).not.toHaveBeenCalled();
   });
 });
