@@ -121,6 +121,35 @@ describe('readContacts', () => {
 
     await expect(read).rejects.toThrow(CONTACTS_PATH);
   });
+
+  it('AC-9 with an old file of only To and Cc people, reads them unchanged', async () => {
+    const storage = makeStorage();
+    const people = [{ name: 'Ada', email: 'ada@example.test', role: 'Accounts', recipient: 'to' }, { name: 'Ben', email: 'ben@example.test', role: '', recipient: 'cc' }];
+    await storage.writeNew(CONTACTS_PATH, JSON.stringify({ people }));
+
+    const read = await readContacts(storage, 'acme');
+
+    expect(read).toEqual(people);
+  });
+
+  it('AC-9 with a person stored as picked, reads them as Picked', async () => {
+    const storage = makeStorage();
+    const people = [{ name: 'Popi', email: 'popi@example.test', role: '', recipient: 'picked' }];
+    await storage.writeNew(CONTACTS_PATH, JSON.stringify({ people }));
+
+    const read = await readContacts(storage, 'acme');
+
+    expect(read).toEqual([{ name: 'Popi', email: 'popi@example.test', role: '', recipient: RecipientKind.Picked }]);
+  });
+
+  it('AC-9 with a person of an unknown kind, refuses and names the file', async () => {
+    const storage = makeStorage();
+    await storage.writeNew(CONTACTS_PATH, '{"people":[{"name":"Ada","email":"ada@example.test","role":"","recipient":"bcc"}]}');
+
+    const read = readContacts(storage, 'acme');
+
+    await expect(read).rejects.toThrow(CONTACTS_PATH);
+  });
 });
 
 describe('addMissingContacts AC-4', () => {

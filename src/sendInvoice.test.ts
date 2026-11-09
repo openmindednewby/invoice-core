@@ -141,16 +141,36 @@ describe('sendInvoice AC-13', () => {
 });
 
 describe('sendInvoice AC-4', () => {
-  it('with new addresses in To and Cc, adds them to the client contacts by field', async () => {
+  it('AC-4 with new addresses in To and Cc, saves them as Picked and never as To or Cc', async () => {
     const storage = await issued();
 
     const result = await sendInvoice(storage, inputWith({ to: ['new-to@example.test'], cc: ['new-cc@example.test'] }), senderReturning('gmail-1'));
 
     expect(result.addedContacts).toEqual(['new-to@example.test', 'new-cc@example.test']);
     expect(await readContacts(storage, 'acme')).toEqual([
-      { name: 'new-to@example.test', email: 'new-to@example.test', role: '', recipient: RecipientKind.To },
-      { name: 'new-cc@example.test', email: 'new-cc@example.test', role: '', recipient: RecipientKind.Cc },
+      { name: 'new-to@example.test', email: 'new-to@example.test', role: '', recipient: RecipientKind.Picked },
+      { name: 'new-cc@example.test', email: 'new-cc@example.test', role: '', recipient: RecipientKind.Picked },
     ]);
+  });
+
+  it('AC-7 with our own address in To and Cc in another case, never saves it', async () => {
+    const storage = await issued();
+    const input = inputWith({ from: 'Me@Example.test', to: ['me@example.TEST', 'ada@example.test'], cc: ['ME@EXAMPLE.TEST'] });
+
+    await sendInvoice(storage, input, senderReturning('gmail-1'));
+
+    expect((await readContacts(storage, 'acme')).map(({ email }) => email)).toEqual(['ada@example.test']);
+  });
+
+  it('AC-8 with a Picked person in To, leaves them Picked', async () => {
+    const storage = await issued();
+    const popi = { name: 'Popi', email: 'popi@example.test', role: '', recipient: RecipientKind.Picked };
+    await saveContacts(storage, 'acme', [popi]);
+
+    const result = await sendInvoice(storage, inputWith({ to: ['popi@example.test'] }), senderReturning('gmail-1'));
+
+    expect(result.addedContacts).toEqual([]);
+    expect(await readContacts(storage, 'acme')).toEqual([popi]);
   });
 
   it('with an address already in the contacts, leaves the person as they are', async () => {
