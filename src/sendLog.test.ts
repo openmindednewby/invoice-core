@@ -50,6 +50,25 @@ describe('readSendLog', () => {
   });
 });
 
+describe('send log invoice number', () => {
+  it('with a number that could leave the folder, readSendLog refuses', async () => {
+    const storage = await issued();
+
+    const read = readSendLog(storage, '../../2030-001');
+
+    await expect(read).rejects.toThrow('invoiceNumber');
+  });
+
+  it('with a number that could leave the folder, appendSend refuses and writes nothing', async () => {
+    const storage = await issued();
+
+    const append = appendSend(storage, '../../2030-001', entryWith('id-1', 'aa'));
+
+    await expect(append).rejects.toThrow('invoiceNumber');
+    expect(await storage.readText('invoices//../../2030-001/sends.json')).toBeNull();
+  });
+});
+
 describe('appendSend AC-17', () => {
   it('with a first send, writes one entry with time, from, to, cc, subject, message id and PDF hash', async () => {
     const storage = await issued();
@@ -102,7 +121,8 @@ describe('appendSend AC-17', () => {
 describe('readSendHistory AC-18', () => {
   it('with an entry for the PDF on disk, does not mark it', async () => {
     const storage = await issued();
-    const hash = createHash('sha256').update('%PDF-fake').digest('hex');
+    await storage.replace(PDF_PATH, '%PDF-current');
+    const hash = createHash('sha256').update('%PDF-current').digest('hex');
     await appendSend(storage, '2030-001', entryWith('id-1', hash));
 
     const history = await readSendHistory(storage, '2030-001');
@@ -112,8 +132,9 @@ describe('readSendHistory AC-18', () => {
 
   it('with an entry whose hash differs from the PDF on disk, marks it an earlier version', async () => {
     const storage = await issued();
+    await storage.replace(PDF_PATH, '%PDF-current');
     const before = createHash('sha256').update('%PDF-old').digest('hex');
-    const now = createHash('sha256').update('%PDF-fake').digest('hex');
+    const now = createHash('sha256').update('%PDF-current').digest('hex');
     await appendSend(storage, '2030-001', entryWith('id-1', before));
     await appendSend(storage, '2030-001', entryWith('id-2', now));
 

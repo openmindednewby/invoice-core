@@ -4,29 +4,32 @@ import { describe, expect, it, vi } from 'vitest';
 import { readContacts, saveContacts } from './contacts';
 import { issueCreditNote } from './creditNote';
 import { editInvoice } from './editInvoice';
+import { issueInvoice } from './issue';
 import { RecipientKind } from './RecipientKind';
 import { readSendLog } from './sendLog';
 import { sendInvoice } from './sendInvoice';
 import type { MailSender } from './sendInvoice';
-import { readSentStatus } from './sentStatus';
+import { markSent, readSentStatus } from './sentStatus';
 import { isSentNotRecordedError } from './SentNotRecordedError';
 import type { InvoiceStorage } from './storage';
-import { fakePdf } from './testing/fixtures';
+import { fakePdf, makeStorage, REQUEST } from './testing/fixtures';
 import { inputWith, issued, senderReturning } from './testing/sendFixtures';
 
 const DIR = 'invoices/2030/2030-001';
 const SENDS_PATH = `${DIR}/sends.json`;
 const STATUS_PATH = `${DIR}/status.json`;
+const PDF_PATH = `${DIR}/2030-001.pdf`;
 
-function failingOn(storage: InvoiceStorage, failPath: string): InvoiceStorage {
-  return { ...storage, replace: (path, data) => (path === failPath ? Promise.reject(new Error('disk full')) : storage.replace(path, data)) };
+function failingOn(storage: InvoiceStorage, ...failPaths: string[]): InvoiceStorage {
+  return { ...storage, replace: (path, data) => (failPaths.includes(path) ? Promise.reject(new Error('disk full')) : storage.replace(path, data)) };
 }
 
 describe('sendInvoice AC-12', () => {
   it('with an issued invoice, sends the PDF to the recipients and returns the message id', async () => {
     const storage = await issued();
+    await storage.replace(PDF_PATH, '%PDF-arranged');
     const sender = senderReturning('gmail-1');
-    const input = inputWith({ from: 'me@example.test', to: ['ada@example.test'], cc: ['ben@example.test'], subject: 'Τιμολόγιο', body: 'Γεια σας' });
+    const input = inputWith({ number: '2030-001', from: 'me@example.test', to: ['ada@example.test'], cc: ['ben@example.test'], subject: 'Τιμολόγιο', body: 'Γεια σας' });
 
     const result = await sendInvoice(storage, input, sender);
 
@@ -34,19 +37,20 @@ describe('sendInvoice AC-12', () => {
     expect(sender.send).toHaveBeenCalledTimes(1);
     expect(sender.send).toHaveBeenCalledWith({
       from: 'me@example.test', to: ['ada@example.test'], cc: ['ben@example.test'], subject: 'Τιμολόγιο', body: 'Γεια σας',
-      attachment: { filename: '2030-001.pdf', contentType: 'application/pdf', data: new TextEncoder().encode('%PDF-fake') },
+      attachment: { filename: '2030-001.pdf', contentType: 'application/pdf', data: new TextEncoder().encode('%PDF-arranged') },
     });
   });
 
   it('with a successful send, appends one log entry holding the hash of the PDF sent', async () => {
     const storage = await issued();
+    await storage.replace(PDF_PATH, '%PDF-arranged');
     const input = inputWith({ at: '2030-10-09T08:00:00.000Z', from: 'me@example.test', to: ['ada@example.test'], cc: ['ben@example.test'], subject: 'Subject' });
 
     await sendInvoice(storage, input, senderReturning('gmail-1'));
 
     expect(await readSendLog(storage, '2030-001')).toEqual([{
       at: '2030-10-09T08:00:00.000Z', from: 'me@example.test', to: ['ada@example.test'], cc: ['ben@example.test'], subject: 'Subject', messageId: 'gmail-1',
-      pdfSha256: createHash('sha256').update('%PDF-fake').digest('hex'),
+      pdfSha256: createHash('sha256').update('%PDF-arranged').digest('hex'),
     }]);
   });
 
@@ -173,14 +177,22 @@ describe('sendInvoice AC-4', () => {
 });
 
 describe('sendInvoice recording failure', () => {
-  it('with a log write that fails after the send, reports the message id and marks nothing', async () => {
+  it('with a log write that fails after the send, still marks it sent and reports both outcomes', async () => {
     const storage = await issued();
 
-    const failure: unknown = await sendInvoice(failingOn(storage, SENDS_PATH), inputWith(), senderReturning('gmail-9')).catch((error: unknown) => error);
+    const failure: unknown = await sendInvoice(failingOn(storage, SENDS_PATH), inputWith({ today: '2030-10-09' }), senderReturning('gmail-9')).catch((error: unknown) => error);
 
     expect(isSentNotRecordedError(failure)).toBe(true);
-    expect(failure).toMatchObject({ messageId: 'gmail-9', logged: false });
-    expect(await storage.readText(STATUS_PATH)).toBeNull();
+    expect(failure).toMatchObject({ messageId: 'gmail-9', logged: false, marked: true });
+    expect(await readSentStatus(storage, '2030-001')).toEqual({ sentOn: '2030-10-09' });
+  });
+
+  it('with both writes failing after the send, reports neither was recorded', async () => {
+    const storage = await issued();
+
+    const failure: unknown = await sendInvoice(failingOn(storage, SENDS_PATH, STATUS_PATH), inputWith(), senderReturning('gmail-9')).catch((error: unknown) => error);
+
+    expect(failure).toMatchObject({ messageId: 'gmail-9', logged: false, marked: false });
   });
 
   it('with a sent mark that fails after the send, reports the message id and that it is logged', async () => {
@@ -189,7 +201,7 @@ describe('sendInvoice recording failure', () => {
     const failure: unknown = await sendInvoice(failingOn(storage, STATUS_PATH), inputWith(), senderReturning('gmail-9')).catch((error: unknown) => error);
 
     expect(isSentNotRecordedError(failure)).toBe(true);
-    expect(failure).toMatchObject({ messageId: 'gmail-9', logged: true });
+    expect(failure).toMatchObject({ messageId: 'gmail-9', logged: true, marked: false });
     expect((await readSendLog(storage, '2030-001')).map((entry) => entry.messageId)).toEqual(['gmail-9']);
   });
 });
@@ -216,5 +228,43 @@ describe('sendInvoice one send in flight', () => {
     const again = sendInvoice(storage, inputWith(), senderReturning('gmail-2'));
 
     await expect(again).resolves.toMatchObject({ messageId: 'gmail-2' });
+  });
+});
+
+describe('sendInvoice first sent date', () => {
+  it('with a logged send but no sent mark, marks the date of the first logged send', async () => {
+    const storage = await issued();
+    const first = inputWith({ at: '2030-10-09T08:00:00.000Z', today: '2030-10-09' });
+    await sendInvoice(failingOn(storage, STATUS_PATH), first, senderReturning('gmail-1')).catch(() => undefined);
+
+    const result = await sendInvoice(storage, inputWith({ at: '2030-10-20T08:00:00.000Z', today: '2030-10-20' }), senderReturning('gmail-2'));
+
+    expect(result.sentOn).toBe('2030-10-09');
+    expect(await readSentStatus(storage, '2030-001')).toEqual({ sentOn: '2030-10-09' });
+  });
+
+  it('with a first logged time that is before the invoice date in UTC, marks the invoice date', async () => {
+    const storage = makeStorage();
+    await issueInvoice(storage, { ...REQUEST, date: '2030-10-08' }, { render: fakePdf });
+    await storage.writeNew(SENDS_PATH, JSON.stringify({ sends: [{ at: '2030-10-07T22:30:00.000Z' }] }));
+
+    const result = await sendInvoice(storage, inputWith({ today: '2030-10-20' }), senderReturning('gmail-2'));
+
+    expect(result.sentOn).toBe('2030-10-08');
+  });
+
+  it('with another tab marking it sent during the send, keeps that date', async () => {
+    const storage = await issued();
+    const sender: MailSender = {
+      send: async () => {
+        await markSent(storage, '2030-001', '2030-10-09');
+        return { messageId: 'gmail-1' };
+      },
+    };
+
+    const result = await sendInvoice(storage, inputWith({ today: '2030-10-20' }), sender);
+
+    expect(result.sentOn).toBe('2030-10-09');
+    expect(await readSentStatus(storage, '2030-001')).toEqual({ sentOn: '2030-10-09' });
   });
 });

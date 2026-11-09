@@ -93,6 +93,17 @@ describe('isValidEmail AC-3', () => {
   );
 });
 
+describe('isValidEmail header safety', () => {
+  it.each(['άδα@example.test', 'ada@exämple.test', 'ada\u0000@example.test', 'ada@example.test\u0007', 'ada\u007f@example.test'])(
+    'with the non-ASCII or control address %j, returns false',
+    (address) => {
+      const valid = isValidEmail(address);
+
+      expect(valid).toBe(false);
+    },
+  );
+});
+
 describe('readContacts', () => {
   it('with no contacts file, returns no people', async () => {
     const storage = makeStorage();
