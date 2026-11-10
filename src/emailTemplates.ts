@@ -139,9 +139,9 @@ export async function readEmailSignature(storage: InvoiceStorage): Promise<strin
 
 /** Stores the email signature, keeping the sender address; a blank signature means none. */
 export async function saveEmailSignature(storage: InvoiceStorage, signature: string): Promise<void> {
-  const { from } = await readSettings(storage);
-  const kept = isBlank(signature) ? {} : { signature };
-  await storage.replace(SETTINGS_PATH, toJson({ ...(from === undefined ? {} : { from }), ...kept }));
+  const settings = await readSettings(storage);
+  delete settings.signature;
+  await storage.replace(SETTINGS_PATH, toJson(isBlank(signature) ? settings : { ...settings, signature }));
 }
 
 /** Fills the signature's placeholders from an issued record, refusing and naming any unknown one. */
@@ -158,7 +158,8 @@ export function appendSignature(body: string, signature: string): string {
   const newline = body.includes(CRLF) ? CRLF : LF;
   const tidy = tidySignature(signature, newline);
   const text = body.trimEnd();
-  if (tidy === '' || text.endsWith(tidy)) {
+  const alreadySigned = text === tidy || text.endsWith(`${newline}${tidy}`);
+  if (tidy === '' || alreadySigned) {
     return body;
   }
   return `${text}${newline}${newline}${tidy}`;
