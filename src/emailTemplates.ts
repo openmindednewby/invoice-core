@@ -13,6 +13,12 @@ const TEMPLATE_DIR = 'email-templates';
 const SETTINGS_PATH = `${TEMPLATE_DIR}/settings.json`;
 const PLACEHOLDER = /\{([^{}\n]*)\}/g;
 const TEMPLATE_FIELDS = ['subject', 'body'] as const;
+const CRLF = '\r\n';
+const LF = '\n';
+const LEADING_NEWLINES = /^(\r?\n)+/;
+const ANY_NEWLINE = /\r?\n/g;
+
+interface EmailSettings { from?: string; signature?: string; }
 
 export const EMAIL_PLACEHOLDERS = ['number', 'period', 'total', 'dueDate', 'clientName', 'companyName'] as const;
 
@@ -92,18 +98,30 @@ export function fillEmailTemplate(template: EmailTemplate, record: InvoiceRecord
   if (errors.length > 0) {
     throw new InvoiceError(errors);
   }
+  return { subject: fillText(template.subject, record), body: fillText(template.body, record) };
+}
+
+async function readSettings(storage: InvoiceStorage): Promise<EmailSettings> {
+  if ((await storage.readText(SETTINGS_PATH)) === null) {
+    return {};
+  }
+  const { from, signature } = await readJsonFile<{ from?: unknown; signature?: unknown }>(storage, SETTINGS_PATH, 'emailSettings');
+  return { ...(typeof from === 'string' ? { from } : {}), ...(typeof signature === 'string' ? { signature } : {}) };
+}
+
+function fillText(text: string, record: InvoiceRecord): string {
   const values = placeholderValues(record);
-  const fill = (text: string): string => text.replace(PLACEHOLDER, (_match, name: string) => values.get(name) ?? '');
-  return { subject: fill(template.subject), body: fill(template.body) };
+  return text.replace(PLACEHOLDER, (_match, name: string) => values.get(name) ?? '');
+}
+
+function tidySignature(signature: string, newline: string): string {
+  return signature.replace(LEADING_NEWLINES, '').trimEnd().replace(ANY_NEWLINE, newline);
 }
 
 /** Reads the address invoices are sent from; null until it is set. */
 export async function readSenderAddress(storage: InvoiceStorage): Promise<string | null> {
-  if ((await storage.readText(SETTINGS_PATH)) === null) {
-    return null;
-  }
-  const { from } = await readJsonFile<{ from?: unknown }>(storage, SETTINGS_PATH, 'emailSettings');
-  return typeof from === 'string' ? from : null;
+  const { from } = await readSettings(storage);
+  return from ?? null;
 }
 
 /** Stores the address invoices are sent from. */
@@ -111,5 +129,37 @@ export async function saveSenderAddress(storage: InvoiceStorage, from: string): 
   if (!isValidEmail(from)) {
     throw new InvoiceError([{ path: 'from', message: INVALID_EMAIL_MESSAGE }]);
   }
-  await storage.replace(SETTINGS_PATH, toJson({ from }));
+  await storage.replace(SETTINGS_PATH, toJson({ ...(await readSettings(storage)), from }));
+}
+
+/** Reads the plain-text signature put under every email; empty when none is set. */
+export async function readEmailSignature(storage: InvoiceStorage): Promise<string> {
+  return (await readSettings(storage)).signature ?? '';
+}
+
+/** Stores the email signature, keeping the sender address; a blank signature means none. */
+export async function saveEmailSignature(storage: InvoiceStorage, signature: string): Promise<void> {
+  const { from } = await readSettings(storage);
+  const kept = isBlank(signature) ? {} : { signature };
+  await storage.replace(SETTINGS_PATH, toJson({ ...(from === undefined ? {} : { from }), ...kept }));
+}
+
+/** Fills the signature's placeholders from an issued record, refusing and naming any unknown one. */
+export function fillEmailSignature(signature: string, record: InvoiceRecord): string {
+  const errors = findUnknownPlaceholders(signature).map((name) => ({ path: 'signature', message: `unknown placeholder {${name}}` }));
+  if (errors.length > 0) {
+    throw new InvoiceError(errors);
+  }
+  return fillText(signature, record);
+}
+
+/** Puts the signature under the body after one blank line, in the body's line ending, unless it already ends with it. */
+export function appendSignature(body: string, signature: string): string {
+  const newline = body.includes(CRLF) ? CRLF : LF;
+  const tidy = tidySignature(signature, newline);
+  const text = body.trimEnd();
+  if (tidy === '' || text.endsWith(tidy)) {
+    return body;
+  }
+  return `${text}${newline}${newline}${tidy}`;
 }

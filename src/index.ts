@@ -9,7 +9,8 @@ export type { EditedInvoice, EditOptions, InvoiceChanges } from './editInvoice';
 export { EDITS_FILE, isEdited, readEditLog } from './editLog';
 export type { EditEntry } from './editLog';
 export {
-  BUILT_IN_EMAIL_TEMPLATES, EMAIL_PLACEHOLDERS, fillEmailTemplate, findUnknownPlaceholders, readEmailTemplate, readSenderAddress, removeEmailTemplate, saveEmailTemplate, saveSenderAddress,
+  appendSignature, BUILT_IN_EMAIL_TEMPLATES, EMAIL_PLACEHOLDERS, fillEmailSignature, fillEmailTemplate, findUnknownPlaceholders, readEmailSignature, readEmailTemplate, readSenderAddress,
+  removeEmailTemplate, saveEmailSignature, saveEmailTemplate, saveSenderAddress,
 } from './emailTemplates';
 export type { EmailTemplate } from './emailTemplates';
 export { exportQuarterCsv } from './exportCsv';
