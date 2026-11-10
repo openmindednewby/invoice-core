@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0
+
+- Email signature in `email-templates/settings.json`: `readEmailSignature`, `saveEmailSignature` (blank = none); saving the signature or the sender address keeps the other.
+- `fillEmailSignature` fills the template placeholders in a signature and refuses an unknown one.
+- `appendSignature` puts the signature under a body after one blank line, in the body's line ending, and never adds it twice.
+
 ## 0.6.0
 
 - Contacts per client in `contacts/<clientId>.json`: `readContacts`, `saveContacts`, `addMissingContacts`, `isValidEmail`, `RecipientKind`.
