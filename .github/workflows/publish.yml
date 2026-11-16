@@ -18,7 +18,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-          registry-url: "https://registry.npmjs.org"
       - name: npm 11 (trusted publishing needs >= 11.5.1)
         run: npm install -g npm@11 && npm --version
       - name: Tag matches package.json version
@@ -38,5 +37,5 @@ jobs:
           }
           build_siblings "$PWD"
       - run: npm ci --no-audit --no-fund
-      - name: Publish (prepublishOnly builds and tests)
-        run: npm publish --access public
+      - name: Publish (prepublishOnly builds and tests; verbose shows the OIDC exchange result)
+        run: npm publish --access public --loglevel verbose
