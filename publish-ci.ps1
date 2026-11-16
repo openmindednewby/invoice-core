@@ -24,7 +24,9 @@ Write-Host "Tag $tag pushed; GitHub Actions publishes it: $remote/actions" -Fore
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $deadline) {
+  $ErrorActionPreference = "Continue"
   $seen = & $npmCmd view "$PackageName@$Version" version 2>$null
+  $ErrorActionPreference = "Stop"
   if ($seen -eq $Version) { Write-Host "$PackageName@$Version is live on npm." -ForegroundColor Green; exit 0 }
   Write-Host ("[{0:HH:mm:ss}] waiting for $PackageName@$Version on npm..." -f (Get-Date))
   Start-Sleep -Seconds 20
