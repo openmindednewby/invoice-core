@@ -220,7 +220,7 @@ try {
   # Step 8: Publish
   Write-Host ""
   Write-Host "Step 8: Publishing to npm..." -ForegroundColor Yellow
-  & $npmCmd publish --access public
+  & (Join-Path $PSScriptRoot "publish-ci.ps1") -RepoRoot $repoRoot -PackageName $packageName -Version $newVersion
   if ($LASTEXITCODE -ne 0) { throw "npm publish failed" }
 
   Write-Host ""
