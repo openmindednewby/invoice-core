@@ -56,3 +56,18 @@ export type {
 } from './types';
 export { isBlank, isRealDate, missingForFinal, validateLines, validateRequest } from './validate';
 export type { InvoiceView, RenderInput } from './view';
+export { BillState } from './bills/BillState';
+export { BillStatus } from './bills/BillStatus';
+export { billsCsv, exportBillsZip, exportBillZip } from './bills/billExport';
+export type { BillsZip, BillZip } from './bills/billExport';
+export type { Bill, BillInput, PayTo } from './bills/billFile';
+export { addBill, BILL_JSON, BILL_PDF, billDir, BILLS_DIR, listBills, readBill } from './bills/billFolder';
+export type { BillList } from './bills/billFolder';
+export { prefillBillFromText } from './bills/billPrefill';
+export type { BillPrefill } from './bills/billPrefill';
+export { addProof, isProofFile, markBillPaid, markBillUnpaid, PROOF_DIR } from './bills/billProof';
+export type { ProofFile } from './bills/billProof';
+export { billState, billTotals, paidWithoutProof, paySheet, sortBills } from './bills/billSummary';
+export type { BillTotals, PaySheet } from './bills/billSummary';
+export { createZip, crc32 } from './bills/zip';
+export type { ZipEntry } from './bills/zip';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BillState } from './BillState';
 import { BillStatus } from './BillStatus';
-import { billState, billTotals, paidWithoutProof, paySheet, sortBills } from './billState';
+import { billState, billTotals, paidWithoutProof, paySheet, sortBills } from './billSummary';
 import type { Bill } from './billFile';
 
 function bill(overrides: Partial<Bill>): Bill {

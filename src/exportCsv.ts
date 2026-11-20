@@ -16,7 +16,8 @@ const NEEDS_QUOTES = /[",\r\n]/;
 const HEADER = ['number', 'kind', 'date', 'period', 'client', 'client_vat', 'net', 'vat', 'total', 'currency', 'vat_rule', 'credit_for', 'reason'];
 const CURRENCY = 'EUR';
 
-function textCell(value: string): string {
+/** Quotes a CSV text cell and defuses a leading formula character. */
+export function textCell(value: string): string {
   const safe = FORMULA_START.test(value) ? `'${value}` : value;
   return NEEDS_QUOTES.test(safe) ? `"${safe.split('"').join('""')}"` : safe;
 }

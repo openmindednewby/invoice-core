@@ -1,5 +1,11 @@
 # Changelog
 
+
+## 0.9.0
+
+- Bills to pay (`bills/<year>/<supplier>-<number>/`): `listBills`, `readBill`, `addBill` (copies the PDF, writes `bill.json`, refuses parts that do not add up), `prefillBillFromText` (number, date, VAT split, IBAN, SWIFT from PDF text).
+- Proof of payment: `addProof` (PDF/PNG/JPG into `proof/`, never overwrites), `markBillPaid`, `markBillUnpaid`; `billState`, `billTotals` (overdue only with a due date), `sortBills`, `paidWithoutProof`, `paySheet`.
+- Export: `billsCsv` with the VAT split, `exportBillZip`, `exportBillsZip` (date range + CSV), store-only `createZip` and `crc32`.
 ## 0.8.0
 
 - Email signature in `email-templates/settings.json`: `readEmailSignature`, `saveEmailSignature` (blank = none); saving the signature or the sender address keeps the other.
