@@ -55,6 +55,7 @@ export type {
   Client, Company, FieldError, InvoiceLine, InvoiceRecord, InvoiceRequest, IssuedInvoice, Parties, ResolvedLine, ScheduleRef, Totals, VatRule,
 } from './types';
 export { isBlank, isRealDate, missingForFinal, validateLines, validateRequest } from './validate';
+export { fieldErrorsOf, hasFieldErrors } from './fieldErrors';
 export type { InvoiceView, RenderInput } from './view';
 export { BillState } from './bills/BillState';
 export { BillStatus } from './bills/BillStatus';
