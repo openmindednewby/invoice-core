@@ -1,3 +1,5 @@
+import { rejectWithin } from '@dloizides/utils';
+
 import { assertNoConflicts } from './conflicts';
 import { ensureIssuable, NUMBER_SHAPE, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
 import { InvoiceKind } from './InvoiceKind';
@@ -13,23 +15,20 @@ import type { RenderInput } from './view';
 
 const RENDER_TIMEOUT_MS = 60000;
 
+function renderWithin(work: Promise<Uint8Array>, timeoutMs: number): Promise<Uint8Array> {
+  return rejectWithin(work, timeoutMs, () => new InvoiceError([{ path: 'pdf', message: `rendering did not finish within ${timeoutMs} ms` }]));
+}
+
 export const NUMBER_LOCK = 'invoice-number';
 
 export type PdfRender = (input: RenderInput) => Promise<Uint8Array>;
 
 export interface IssueOptions { render?: PdfRender; schedule?: ScheduleRef; renderTimeoutMs?: number; }
 
-function settleWithin(work: Promise<Uint8Array>, timeoutMs: number): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new InvoiceError([{ path: 'pdf', message: `rendering did not finish within ${timeoutMs} ms` }])), timeoutMs);
-    void work.then(resolve, reject).finally(() => clearTimeout(timer));
-  });
-}
-
 /** The renderer in force for these options; one that never finishes rejects, so it cannot hold the number lock. */
 export function rendererFor(storage: InvoiceStorage, options: IssueOptions): PdfRender {
   const render = options.render ?? ((input): Promise<Uint8Array> => renderInvoicePdf(storage, input));
-  return (input) => settleWithin(render(input), options.renderTimeoutMs ?? RENDER_TIMEOUT_MS);
+  return (input) => renderWithin(render(input), options.renderTimeoutMs ?? RENDER_TIMEOUT_MS);
 }
 
 /** Saves the record first, then its PDF; a failed PDF leaves a record that reprintInvoice can finish. */
