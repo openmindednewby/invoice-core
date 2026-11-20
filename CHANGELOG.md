@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0
+
+- `fieldErrorsOf(error)` returns an error's field list, or one entry with its message; `hasFieldErrors(error)` tells whether an error carries a field list (moved from invoice-web).
+
 
 ## 0.9.0
 
