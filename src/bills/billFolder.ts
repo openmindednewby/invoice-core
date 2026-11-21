@@ -22,7 +22,7 @@ export interface BillList {
   broken: string[];
 }
 
-function supplierSlug(supplier: string): string {
+export function supplierSlug(supplier: string): string {
   const word = supplier.normalize('NFD').toLowerCase().split(/[^a-z0-9]+/).find((part) => part.length > 0);
   return word ?? FALLBACK_SLUG;
 }
@@ -47,17 +47,18 @@ export async function saveBill(storage: InvoiceStorage, bill: Bill): Promise<voi
   await storage.replace(`${bill.dir}/${BILL_JSON}`, toJson(billToJson(bill, existing)));
 }
 
-async function billDirs(storage: InvoiceStorage): Promise<string[]> {
-  const years = (await storage.list(BILLS_DIR)).filter((name) => YEAR.test(name));
-  const perYear = await Promise.all(years.map(async (year) => (await storage.list(`${BILLS_DIR}/${year}`))
-    .filter((name) => !isOsFile(name)).map((name) => `${BILLS_DIR}/${year}/${name}`)));
+/** Every record folder under root/<year>/, for a store laid out by year. */
+export async function yearDirs(storage: InvoiceStorage, root: string): Promise<string[]> {
+  const years = (await storage.list(root)).filter((name) => YEAR.test(name));
+  const perYear = await Promise.all(years.map(async (year) => (await storage.list(`${root}/${year}`))
+    .filter((name) => !isOsFile(name)).map((name) => `${root}/${year}/${name}`)));
   return perYear.flat();
 }
 
 /** Lists every bill in bills/; a folder whose bill.json cannot be read is returned in broken. */
 export async function listBills(storage: InvoiceStorage): Promise<BillList> {
   const result: BillList = { bills: [], broken: [] };
-  for (const dir of await billDirs(storage)) {
+  for (const dir of await yearDirs(storage, BILLS_DIR)) {
     if ((await storage.list(dir)).includes(BILL_JSON)) {
       await readBill(storage, dir).then((bill) => result.bills.push(bill), () => result.broken.push(dir));
     }

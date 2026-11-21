@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.0
+
+- Company expenses (`expenses/<year>/<date>-<supplier>/expense.json`): `addExpense`, `listExpenses`, `readExpense`, `saveExpense`; how paid (`PaidFrom`: company card, company bank, cash, own money); net, VAT, rate (19/9/5/0/none), reclaimable.
+- Receipts into `receipt/` (`addReceipt`, `receiptMissing`); pay-back of own-money expenses (`toPayBack`, `payBackTotal`, `markPaidBack`, `markNotPaidBack`).
+- Nine editable categories in `expenses/categories.json` (`readCategories`, `addCategory`, `renameCategory`); `prefillExpenseFromText` (date, VAT number, split, rate; reclaimable when a VAT number is found).
+- Recurring expenses in `expenses/recurring.json` (`addRecurring`, `listRecurring`, `runRecurring`): one expense per missed period, optional end month, no catch-up cap.
+- `costsCsv` and `exportCostsZip` join bills and expenses in one CSV with the VAT split and reclaimable VAT.
 ## 0.11.0
 
 - Billing plan per client: `prepareSchedulePlan` saves `plan` (from, until, monthly amount, amount basis) in `schedules/<client>-plan.json` and prepares one draft per month from..until across years; months another schedule, an issued invoice or a caller draft holds are skipped; a new amount changes only drafts; drafts after the end month are dropped. `planPeriods`, `planId`.

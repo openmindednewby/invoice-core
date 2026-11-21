@@ -77,3 +77,18 @@ export { billState, billTotals, paidWithoutProof, paySheet, sortBills } from './
 export type { BillTotals, PaySheet } from './bills/billSummary';
 export { createZip, crc32 } from './bills/zip';
 export type { ZipEntry } from './bills/zip';
+export { addCategory, DEFAULT_EXPENSE_CATEGORIES, readCategories, renameCategory } from './expenses/categories';
+export type { ExpenseCategory } from './expenses/categories';
+export { costsCsv, exportCostsZip } from './expenses/expenseExport';
+export type { CostsZip } from './expenses/expenseExport';
+export type { Expense, ExpenseAmounts, ExpenseDetails, ExpenseInput } from './expenses/expenseFile';
+export { addExpense, expenseDir, listExpenses, readExpense, saveExpense } from './expenses/expenseFolder';
+export type { ExpenseList } from './expenses/expenseFolder';
+export { EXPENSE_JSON, EXPENSE_VAT_RATES, EXPENSES_DIR, RECEIPT_DIR } from './expenses/expensePaths';
+export { prefillExpenseFromText } from './expenses/expensePrefill';
+export type { ExpensePrefill } from './expenses/expensePrefill';
+export { addReceipt, receiptMissing } from './expenses/expenseReceipt';
+export { PaidFrom } from './expenses/PaidFrom';
+export { markNotPaidBack, markPaidBack, payBackTotal, toPayBack } from './expenses/payBack';
+export { addRecurring, listRecurring, runRecurring } from './expenses/recurring';
+export type { RecurringExpense, RecurringInput } from './expenses/recurring';

@@ -31,15 +31,15 @@ export interface Bill extends BillInput {
 
 export type BillJson = Record<string, unknown>;
 
-function text(value: unknown): string {
+export function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function dateOrNull(value: unknown): string | null {
+export function dateOrNull(value: unknown): string | null {
   return typeof value === 'string' && value !== '' ? value : null;
 }
 
-function cents(value: unknown): number {
+export function cents(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? Math.round(value * CENTS_PER_UNIT) : 0;
 }
 

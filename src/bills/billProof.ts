@@ -50,19 +50,21 @@ function lockName(dir: string): string {
   return `bill:${dir}`;
 }
 
-function checkTypes(files: ProofFile[]): void {
+/** Refuses the files if one is not a PDF, PNG or JPG; path names the field. */
+export function checkProofTypes(files: ProofFile[], path: string): void {
   const unsupported = files.find((file) => !isProofFile(file.name));
   if (unsupported !== undefined) {
-    throw new InvoiceError([{ path: PROOF_DIR, message: `${unsupported.name} is not a PDF, PNG or JPG` }]);
+    throw new InvoiceError([{ path, message: `${unsupported.name} is not a PDF, PNG or JPG` }]);
   }
 }
 
-async function copyProofs(storage: InvoiceStorage, dir: string, files: ProofFile[]): Promise<string[]> {
-  const taken = new Set((await storage.list(`${dir}/${PROOF_DIR}`)).map((name) => name.toLowerCase()));
+/** Copies files into folder under names never used there before; returns the names used. */
+export async function copyProofFiles(storage: InvoiceStorage, folder: string, files: ProofFile[]): Promise<string[]> {
+  const taken = new Set((await storage.list(folder)).map((name) => name.toLowerCase()));
   const added: string[] = [];
   for (const file of files) {
     const name = freeName(file.name, taken);
-    await storage.writeNew(`${dir}/${PROOF_DIR}/${name}`, file.bytes);
+    await storage.writeNew(`${folder}/${name}`, file.bytes);
     taken.add(name.toLowerCase());
     added.push(name);
   }
@@ -72,12 +74,12 @@ async function copyProofs(storage: InvoiceStorage, dir: string, files: ProofFile
 /** Copies proofs into proof/ under names never used before, and marks the bill paid when a paid-on date is given. */
 export function addProof(storage: InvoiceStorage, dir: string, files: ProofFile[], paidOn: string | null): Promise<Bill> {
   return storage.withLock(lockName(dir), async () => {
-    checkTypes(files);
+    checkProofTypes(files, PROOF_DIR);
     const bill = await readBill(storage, dir);
     if (paidOn !== null) {
       checkPaidOn(bill, paidOn);
     }
-    const added = await copyProofs(storage, dir, files);
+    const added = await copyProofFiles(storage, `${dir}/${PROOF_DIR}`, files);
     const paid = paidOn === null ? {} : { status: BillStatus.Paid, paidOn };
     const updated: Bill = { ...bill, ...paid, proofFiles: [...bill.proofFiles, ...added] };
     await saveBill(storage, updated);

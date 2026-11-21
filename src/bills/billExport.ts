@@ -35,7 +35,7 @@ export function billsCsv(bills: Bill[]): string {
   return `${BOM}${[HEADER.join(','), ...bills.map(toRow)].join(NEWLINE)}${NEWLINE}`;
 }
 
-async function billEntries(storage: InvoiceStorage, bill: Bill, under: string): Promise<ZipEntry[]> {
+export async function billEntries(storage: InvoiceStorage, bill: Bill, under: string): Promise<ZipEntry[]> {
   const names = [BILL_PDF, BILL_JSON, ...bill.proofFiles.map((name) => `${PROOF_DIR}/${name}`)];
   const files = await Promise.all(names.map(async (name) => ({ path: `${under}/${name}`, bytes: await storage.readBytes(`${bill.dir}/${name}`) })));
   return files.flatMap((file) => (file.bytes === null ? [] : [{ path: file.path, bytes: file.bytes }]));
@@ -52,7 +52,7 @@ export async function exportBillZip(storage: InvoiceStorage, dir: string): Promi
   return { fileName: `bill-${name}.zip`, bytes: createZip(await billEntries(storage, bill, name)) };
 }
 
-function checkRange(from: string, to: string): void {
+export function checkRange(from: string, to: string): void {
   if (!isRealDate(from) || !isRealDate(to)) {
     throw new InvoiceError([{ path: isRealDate(from) ? 'to' : 'from', message: 'must be a real date as YYYY-MM-DD' }]);
   }
@@ -61,12 +61,17 @@ function checkRange(from: string, to: string): void {
   }
 }
 
+/** The bills issued from..to (inclusive), oldest first. */
+export async function billsIn(storage: InvoiceStorage, from: string, to: string): Promise<Bill[]> {
+  return (await listBills(storage)).bills
+    .filter((bill) => bill.issueDate >= from && bill.issueDate <= to)
+    .sort((a, b) => a.issueDate.localeCompare(b.issueDate) || a.dir.localeCompare(b.dir));
+}
+
 /** Every bill issued from..to (inclusive) with its proofs, plus a CSV summary, as one zip. */
 export async function exportBillsZip(storage: InvoiceStorage, from: string, to: string): Promise<BillsZip> {
   checkRange(from, to);
-  const bills = (await listBills(storage)).bills
-    .filter((bill) => bill.issueDate >= from && bill.issueDate <= to)
-    .sort((a, b) => a.issueDate.localeCompare(b.issueDate) || a.dir.localeCompare(b.dir));
+  const bills = await billsIn(storage, from, to);
   const base = `bills-${from}-to-${to}`;
   const entries = await Promise.all(bills.map((bill) => billEntries(storage, bill, bill.dir.slice(BILLS_DIR.length + 1))));
   const csv = { path: `${base}.csv`, bytes: new TextEncoder().encode(billsCsv(bills)) };

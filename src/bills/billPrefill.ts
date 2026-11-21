@@ -11,7 +11,7 @@ export interface BillPrefill {
   payTo: Partial<PayTo>;
 }
 
-const AMOUNT = String.raw`€?\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}|\d+\.\d{2})`;
+export const AMOUNT = String.raw`€?\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}|\d+\.\d{2})`;
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
 const NUMBER = /I?nvoice\s+no\.?\s*(?::\s*)?([a-z0-9][a-z0-9/-]*)/i;
 const DATE_WORDS = /Date:?\s*(\d{1,2})\s+([a-z]+)\s+(\d{4})/i;
@@ -28,7 +28,7 @@ const NOT_SUBJECT = new RegExp(String.raw`not\s+subject\s+to\s+VAT\s+${AMOUNT}`,
 const TOTAL = new RegExp(String.raw`\bTotal\b\s*:?\s*${AMOUNT}`, 'g');
 const TWO_DIGITS = 2;
 
-function plainAmount(found: string | undefined): string | undefined {
+export function plainAmount(found: string | undefined): string | undefined {
   if (found === undefined) {
     return undefined;
   }
@@ -48,7 +48,7 @@ function issueDateOf(text: string): string | undefined {
   return digits === null ? undefined : isoDate(digits[1] ?? '', Number(digits[2]), digits[3] ?? '');
 }
 
-function lastTotal(text: string): string | undefined {
+export function lastTotal(text: string): string | undefined {
   return plainAmount([...text.matchAll(TOTAL)].pop()?.[1]);
 }
 
@@ -69,7 +69,7 @@ function bankOf(text: string): string | undefined {
   return undefined;
 }
 
-function defined<T extends object>(value: T): T {
+export function defined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
 
