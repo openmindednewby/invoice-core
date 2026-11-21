@@ -1,5 +1,5 @@
 import { InvoiceKind } from './InvoiceKind';
-import { computeTotals, resolveLines } from './lines';
+import { computeTotals, grossCentsOf, resolveLines } from './lines';
 import { formatCents } from './money';
 import { addDays, displayDate, periodTexts } from './period';
 import type { InvoiceRequest, Parties, ResolvedLine, Totals } from './types';
@@ -32,7 +32,7 @@ function shown(value: unknown): string {
 export function buildInvoiceView(input: RenderInput): InvoiceView {
   const { request, number, parties: { company, client, rule } } = input;
   const lines = input.lines ?? resolveLines(request, client);
-  const totals = input.totals ?? computeTotals(lines, rule.ratePercent);
+  const totals = input.totals ?? computeTotals(lines, rule.ratePercent, grossCentsOf(request));
   const period = periodTexts(request.period);
   return {
     draft: number === null,

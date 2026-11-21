@@ -50,6 +50,9 @@ export function validateRequest(req: InvoiceRequest): FieldError[] {
   }
   req.amounts.forEach((amount, i) => errors.push(...amountErrors(amount, `amounts[${i}]`)));
   errors.push(...validateLines(lines));
+  if (req.grossTotal !== undefined) {
+    errors.push(...amountErrors(req.grossTotal, 'grossTotal'));
+  }
   return errors;
 }
 

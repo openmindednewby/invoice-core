@@ -17,9 +17,14 @@ export function resolveLines(request: InvoiceRequest, client: Client): ResolvedL
   return request.amounts.map((amount) => ({ description, cents: toCents(amount) ?? 0 }));
 }
 
-/** Sums lines in whole cents and adds VAT at the given rate. */
-export function computeTotals(lines: ResolvedLine[], ratePercent: number): Totals {
+/** The VAT-included total a request must come to, in cents, or null when it has none. */
+export function grossCentsOf(request: InvoiceRequest): number | null {
+  return request.grossTotal === undefined ? null : toCents(request.grossTotal);
+}
+
+/** Sums lines in whole cents and adds VAT at the rate; with a gross total, VAT is what makes the total exact. */
+export function computeTotals(lines: ResolvedLine[], ratePercent: number, grossCents: number | null = null): Totals {
   const netCents = lines.reduce((sum, line) => sum + line.cents, 0);
-  const vat = vatCents(netCents, ratePercent);
+  const vat = grossCents === null ? vatCents(netCents, ratePercent) : grossCents - netCents;
   return { netCents, vatCents: vat, totalCents: netCents + vat };
 }

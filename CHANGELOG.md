@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0
+
+- Billing plan per client: `prepareSchedulePlan` saves `plan` (from, until, monthly amount, amount basis) in `schedules/<client>-plan.json` and prepares one draft per month from..until across years; months another schedule, an issued invoice or a caller draft holds are skipped; a new amount changes only drafts; drafts after the end month are dropped. `planPeriods`, `planId`.
+- `AmountBasis` (VAT included or before VAT) on a plan month: VAT included issues net = round(gross / (1 + rate), 2) and VAT = gross - net, so the total is the entered amount (`splitGross`, `netLinesFromGross`, `scheduleMonthTotals`, `InvoiceRequest.grossTotal`). Old schedules load unchanged.
+
 ## 0.10.0
 
 - `fieldErrorsOf(error)` returns an error's field list, or one entry with its message; `hasFieldErrors(error)` tells whether an error carries a field list (moved from invoice-web).

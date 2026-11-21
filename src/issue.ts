@@ -4,7 +4,7 @@ import { assertNoConflicts } from './conflicts';
 import { ensureIssuable, NUMBER_SHAPE, numberYear, pdfPath, readJsonFile, recordPath } from './folder';
 import { InvoiceKind } from './InvoiceKind';
 import { resolveLayout, selectLayoutName } from './layouts';
-import { computeTotals, resolveLines } from './lines';
+import { computeTotals, grossCentsOf, resolveLines } from './lines';
 import { claimInvoice, nextNumber } from './numbering';
 import { checkRequest } from './parties';
 import { loadLogo, renderInvoicePdf } from './pdf';
@@ -56,7 +56,7 @@ export async function issueInvoice(storage: InvoiceStorage, request: InvoiceRequ
     const number = await nextNumber(storage, final.date.slice(0, 4));
     const lines = resolveLines(final, parties.client);
     const pdf = await render({ request: final, number, parties, lines });
-    const totals = computeTotals(lines, parties.rule.ratePercent);
+    const totals = computeTotals(lines, parties.rule.ratePercent, grossCentsOf(final));
     const record: InvoiceRecord = { kind: InvoiceKind.Invoice, number, request: final, ...parties, lines, totals, ...(options.schedule ? { schedule: options.schedule } : {}) };
     return commitRecord(storage, record, pdf);
   });

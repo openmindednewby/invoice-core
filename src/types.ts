@@ -26,7 +26,7 @@ export interface Totals { netCents: number; vatCents: number; totalCents: number
 
 export interface InvoiceRequest {
   clientId: string; period: string; date: string; amounts: string[]; lines?: InvoiceLine[];
-  template?: string; layout?: string; draft: boolean;
+  template?: string; layout?: string; draft: boolean; grossTotal?: string;
 }
 
 export interface Parties { company: Company; client: Client; rule: VatRule; }

@@ -1,3 +1,4 @@
+import { AmountBasis } from './AmountBasis';
 import { ensureIssuable, readJsonFile, toJson } from './folder';
 import { issueInvoice, listIssued } from './issue';
 import type { PdfRender } from './issue';
@@ -7,16 +8,19 @@ import { loadParties } from './parties';
 import { isStorageExistsError } from './storage';
 import type { InvoiceStorage } from './storage';
 import { InvoiceError } from './types';
-import type { FieldError, InvoiceLine, InvoiceRecord } from './types';
+import type { FieldError, InvoiceLine, InvoiceRecord, InvoiceRequest } from './types';
 import { isRealDate, validateLines } from './validate';
+import { netLinesFromGross } from './vatIncluded';
 
 const MONTHS_IN_YEAR = 12;
 const YEAR = /^\d{4}$/;
 const SAFE_ID = /^[\w-]+$/;
 
-export interface ScheduleMonth { period: string; lines: InvoiceLine[]; number: string | null; issuedOn: string | null; }
+export interface ScheduleMonth { period: string; lines: InvoiceLine[]; number: string | null; issuedOn: string | null; basis?: AmountBasis; }
 
-export interface InvoiceSchedule { id: string; clientId: string; year: string; months: ScheduleMonth[]; }
+export interface SchedulePlan { from: string; until: string; monthlyAmount: string; basis: AmountBasis; }
+
+export interface InvoiceSchedule { id: string; clientId: string; year: string; months: ScheduleMonth[]; plan?: SchedulePlan; }
 
 export interface PrepareScheduleRequest { clientId: string; year: string; monthlyAmount: string; }
 
@@ -28,11 +32,13 @@ export interface IssueDueResult {
   remaining: string[];
 }
 
-function schedulePath(id: string): string {
+/** Where a schedule is stored. */
+export function schedulePath(id: string): string {
   return `schedules/${id}.json`;
 }
 
-function lockName(id: string): string {
+/** The lock a schedule's writers share. */
+export function lockName(id: string): string {
   return `schedule-${id}`;
 }
 
@@ -79,7 +85,8 @@ async function scheduleRecords(storage: InvoiceStorage, schedule: InvoiceSchedul
   return (await Promise.all(years.map((year) => listIssued(storage, year)))).flat().filter((record) => record.schedule?.id === schedule.id);
 }
 
-async function reconcile(storage: InvoiceStorage, schedule: InvoiceSchedule): Promise<InvoiceSchedule> {
+/** Copies issued numbers from the records into the schedule and saves it if any changed. */
+export async function reconcile(storage: InvoiceStorage, schedule: InvoiceSchedule): Promise<InvoiceSchedule> {
   const records = await scheduleRecords(storage, schedule);
   const months = schedule.months.map((month) => {
     const record = records.find((entry) => entry.schedule?.period === month.period);
@@ -127,9 +134,18 @@ async function recordedNumber(storage: InvoiceStorage, schedule: InvoiceSchedule
   }
 }
 
+async function monthRequest(storage: InvoiceStorage, schedule: InvoiceSchedule, month: ScheduleMonth, today: string): Promise<InvoiceRequest> {
+  const base = { clientId: schedule.clientId, period: month.period, date: today, amounts: [], draft: false };
+  if (month.basis !== AmountBasis.VatIncluded) {
+    return { ...base, lines: month.lines };
+  }
+  const { rule } = await loadParties(storage, schedule.clientId);
+  return { ...base, ...netLinesFromGross(month.lines, rule.ratePercent) };
+}
+
 async function issueMonth(storage: InvoiceStorage, schedule: InvoiceSchedule, month: ScheduleMonth, options: IssueDueOptions): Promise<{ number: string | null; errors: FieldError[] }> {
-  const request = { clientId: schedule.clientId, period: month.period, date: options.today, amounts: [], lines: month.lines, draft: false };
   try {
+    const request = await monthRequest(storage, schedule, month, options.today);
     const { number } = await issueInvoice(storage, request, { render: options.render, schedule: { id: schedule.id, period: month.period } });
     return { number, errors: [] };
   } catch (error) {
