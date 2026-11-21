@@ -97,3 +97,15 @@ describe('issueDueMonths AC7', () => {
     expect((record?.totals.netCents ?? 0) + (record?.totals.vatCents ?? 0)).toBe(516667);
   });
 });
+
+describe('readSchedule N7', () => {
+  it('with a yearly schedule stored before plans, reads it as a Jan-Dec plan before VAT', async () => {
+    const storage = makeStorage();
+    await storage.replace('schedules/acme-2030.json', JSON.stringify({ id: 'acme-2030', clientId: 'acme', year: '2030', months: [{ period: '2030-01', lines: [{ description: 'x', amount: '900' }], number: null, issuedOn: null }] }));
+
+    const schedule = await readSchedule(storage, 'acme-2030');
+
+    expect(schedule.plan).toEqual({ from: '2030-01', until: '2030-12', monthlyAmount: '900', basis: AmountBasis.BeforeVat });
+    expect(schedule.months).toHaveLength(1);
+  });
+});

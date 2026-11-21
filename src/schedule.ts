@@ -72,12 +72,20 @@ export async function prepareYearSchedule(storage: InvoiceStorage, request: Prep
   return schedule;
 }
 
-/** Reads a schedule by id. */
+function withPlan(schedule: InvoiceSchedule): InvoiceSchedule {
+  if (schedule.plan) {
+    return schedule;
+  }
+  const monthlyAmount = schedule.months[0]?.lines[0]?.amount ?? '';
+  return { ...schedule, plan: { from: `${schedule.year}-01`, until: `${schedule.year}-12`, monthlyAmount, basis: AmountBasis.BeforeVat } };
+}
+
+/** Reads a schedule by id; a yearly schedule stored before plans reads as a Jan-Dec plan. */
 export async function readSchedule(storage: InvoiceStorage, id: string): Promise<InvoiceSchedule> {
   if (!SAFE_ID.test(id)) {
     throw new InvoiceError([{ path: 'schedule', message: 'must hold only letters, digits, - and _' }]);
   }
-  return readJsonFile<InvoiceSchedule>(storage, schedulePath(id), 'schedule');
+  return withPlan(await readJsonFile<InvoiceSchedule>(storage, schedulePath(id), 'schedule'));
 }
 
 async function scheduleRecords(storage: InvoiceStorage, schedule: InvoiceSchedule): Promise<InvoiceRecord[]> {
