@@ -31,11 +31,47 @@ describe('prefillBillFromText', () => {
     expect(issueDate).toBe('2026-03-05');
   });
 
+  it('with an upper-case month name, reads the date', () => {
+    const text = 'Date: 2 NOVEMBER 2026';
+
+    const { issueDate } = prefillBillFromText(text);
+
+    expect(issueDate).toBe('2026-11-02');
+  });
+
   it('with text that has none of the fields, returns an empty prefill', () => {
     const text = 'a scanned image with no text layer';
 
     const prefill = prefillBillFromText(text);
 
     expect(prefill).toEqual({ payTo: {} });
+  });
+
+  it.each([
+    ['Invoice No: AB-12/3 Date', 'AB-12/3'],
+    ['INVOICE NO.   :  x9 rest', 'x9'],
+    ['nvoice no 77', '77'],
+    ['Invoice no. : -bad', undefined],
+  ])('with the number line %j, reads the number %j', (text, expected) => {
+    const line = text;
+
+    const { number } = prefillBillFromText(line);
+
+    expect(number).toBe(expected);
+  });
+
+  it.each([
+    ['Bank:   Example Bank   SWIFT: EXBKCY2N', 'Example Bank'],
+    ['Bank:\nExample Bank A/C 1', 'Example Bank'],
+    ['Bank: Example Bank\nIBAN: CY17', 'Example Bank'],
+    ['Bank: Ex\nample SWIFT Bank: Second BIC', 'Second'],
+    ['Bank: X SWIFTY BIC', 'X SWIFTY'],
+    ['Bank: Example Bank', undefined],
+  ])('with the bank line %j, reads the bank %j', (text, expected) => {
+    const line = text;
+
+    const { payTo } = prefillBillFromText(line);
+
+    expect(payTo.bank).toBe(expected);
   });
 });

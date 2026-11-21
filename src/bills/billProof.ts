@@ -29,8 +29,10 @@ function freeName(name: string, taken: Set<string>): string {
   const safe = name.replace(UNSAFE_NAME, '-');
   const dot = safe.lastIndexOf('.');
   let candidate = safe;
-  for (let n = FIRST_COPY; taken.has(candidate.toLowerCase()); n += 1) {
-    candidate = `${safe.slice(0, dot)}-${n}${safe.slice(dot)}`;
+  let copy = FIRST_COPY;
+  while (taken.has(candidate.toLowerCase())) {
+    candidate = `${safe.slice(0, dot)}-${copy}${safe.slice(dot)}`;
+    copy += 1;
   }
   return candidate;
 }

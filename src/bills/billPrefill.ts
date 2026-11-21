@@ -13,13 +13,15 @@ export interface BillPrefill {
 
 const AMOUNT = String.raw`€?\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d+,\d{2}|\d+\.\d{2})`;
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-const NUMBER = /I?nvoice\s+no\.?\s*:?\s*([A-Za-z0-9][A-Za-z0-9/-]*)/i;
-const DATE_WORDS = /Date:?\s*(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/i;
+const NUMBER = /I?nvoice\s+no\.?\s*(?::\s*)?([a-z0-9][a-z0-9/-]*)/i;
+const DATE_WORDS = /Date:?\s*(\d{1,2})\s+([a-z]+)\s+(\d{4})/i;
 const DATE_DIGITS = /Date:?\s*(\d{1,2})[./-](\d{1,2})[./-](\d{4})/i;
 const SUPPLIER_VAT = /V\.?A\.?T\.?\s*Reg(?:istration)?\.?\s*No\.?:?\s*([A-Z0-9]+)/i;
 const IBAN = /IBAN:?\s*([A-Z]{2}\d{2}(?: ?[A-Z0-9]{4})+(?: ?[A-Z0-9]{1,3})?)\b/;
 const SWIFT = /(?:SWIFT|BIC)(?:\/BIC)?:?\s*([A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?)\b/;
-const BANK = /Bank:\s*(.+?)\s+(?:SWIFT|BIC|A\/C|IBAN)\b/;
+const BANK_LABEL = 'Bank:';
+const BANK_END = /\s(?:SWIFT|BIC|A\/C|IBAN)\b/;
+const LINE_BREAK = /[\n\r\p{Zl}\p{Zp}]/u;
 const NET = new RegExp(String.raw`Subtotal\s*[–-]\s*vatable\s+${AMOUNT}`, 'i');
 const VAT = new RegExp(String.raw`VAT\s*@\s*[\d.,]+\s*%\s+${AMOUNT}`, 'i');
 const NOT_SUBJECT = new RegExp(String.raw`not\s+subject\s+to\s+VAT\s+${AMOUNT}`, 'i');
@@ -50,6 +52,23 @@ function lastTotal(text: string): string | undefined {
   return plainAmount([...text.matchAll(TOTAL)].pop()?.[1]);
 }
 
+function bankAt(text: string, labelAt: number): string | undefined {
+  const rest = text.slice(labelAt + BANK_LABEL.length).trimStart();
+  const end = BANK_END.exec(rest.slice(1));
+  const bank = end === null ? undefined : rest.slice(0, end.index + 1).trimEnd();
+  return bank === undefined || LINE_BREAK.test(bank) ? undefined : bank;
+}
+
+function bankOf(text: string): string | undefined {
+  for (let at = text.indexOf(BANK_LABEL); at >= 0; at = text.indexOf(BANK_LABEL, at + 1)) {
+    const bank = bankAt(text, at);
+    if (bank !== undefined) {
+      return bank;
+    }
+  }
+  return undefined;
+}
+
 function defined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
@@ -62,6 +81,6 @@ export function prefillBillFromText(text: string): BillPrefill {
       net: plainAmount(NET.exec(text)?.[1]), vat: plainAmount(VAT.exec(text)?.[1]), notSubjectToVat: plainAmount(NOT_SUBJECT.exec(text)?.[1]),
       total: lastTotal(text),
     }),
-    payTo: defined({ bank: BANK.exec(text)?.[1], iban: IBAN.exec(text)?.[1]?.split(' ').join(''), swift: SWIFT.exec(text)?.[1] }),
+    payTo: defined({ bank: bankOf(text), iban: IBAN.exec(text)?.[1]?.split(' ').join(''), swift: SWIFT.exec(text)?.[1] }),
   };
 }
