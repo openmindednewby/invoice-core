@@ -26,9 +26,18 @@ describe('costsCsv', () => {
 
     expect(csv.trim().split('\r\n').slice(1)).toEqual([
       'expense,2026-11-02,Example Cafe Ltd,10000002X,,Meals and entertainment,Client coffee,EUR,5.88,1.12,19,0.00,0.00,7.00,receipt-missing,2026-11-02,own-money,,0',
-      'bill,2026-11-10,Example Supplier,10000001X,26300,,,EUR,100.00,19.00,,,0.00,119.00,unpaid,,,,0',
+      'bill,2026-11-10,Example Supplier,10000001X,26300,,,EUR,100.00,19.00,,19.00,0.00,119.00,unpaid,,,,0',
       'expense,2026-11-14,Example Cafe Ltd,10000002X,,Meals and entertainment,Client coffee,EUR,5.88,1.12,19,1.12,0.00,7.00,receipt-missing,2026-11-14,company-card,,0',
     ]);
+  });
+
+  it('with a bill whose supplier VAT number is empty, marks no VAT reclaimable', async () => {
+    const storage = createMemoryStorage();
+    const bill = await addBill(storage, PDF_BYTES, { ...BILL, supplierVat: '' });
+
+    const csv = costsCsv([bill], [], await readCategories(storage));
+
+    expect(csv.trim().split('\r\n')[1]).toBe('bill,2026-11-10,Example Supplier,,26300,,,EUR,100.00,19.00,,0.00,0.00,119.00,unpaid,,,,0');
   });
 });
 

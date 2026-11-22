@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0
+
+- Bills saved with only the total: `vatSplitMissing(bill)` is true when net, VAT and not subject to VAT are all zero; such a bill is accepted instead of refused (D-AWAY-INV-5).
+- `endRecurring(storage, id, endMonth)` stops a recurring expense after a month; the expenses it already added stay (D-AWAY-INV-6).
+- `skipRecurringMonth(storage, id, month)` records a deleted month (`skippedMonths`) so `runRecurring` never adds it again (D-AWAY-INV-7).
+- `costsCsv` fills the reclaimable VAT of a bill: its VAT when the supplier VAT number is set, else 0.00 (D-AWAY-INV-8).
+
 ## 0.12.0
 
 - Company expenses (`expenses/<year>/<date>-<supplier>/expense.json`): `addExpense`, `listExpenses`, `readExpense`, `saveExpense`; how paid (`PaidFrom`: company card, company bank, cash, own money); net, VAT, rate (19/9/5/0/none), reclaimable.

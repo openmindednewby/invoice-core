@@ -48,6 +48,20 @@ function payToOf(value: unknown): PayTo {
   return { bank: text(raw.bank), iban: text(raw.iban), swift: text(raw.swift) };
 }
 
+/** True for a bill saved with only its total: net, VAT and not subject to VAT are all still zero. */
+export function vatSplitMissing(bill: BillInput): boolean {
+  return bill.netCents === 0 && bill.vatCents === 0 && bill.notSubjectToVatCents === 0 && bill.totalCents !== 0;
+}
+
+function splitAddsUp(bill: BillInput): boolean {
+  return bill.netCents + bill.vatCents + bill.notSubjectToVatCents === bill.totalCents;
+}
+
+/** True when the split adds up to the total, or is not entered yet. */
+export function totalAccepted(bill: BillInput): boolean {
+  return splitAddsUp(bill) || vatSplitMissing(bill);
+}
+
 /** Reads a bill.json object into a bill; amounts in the file are euros, in memory cents. */
 export function billFromJson(dir: string, json: BillJson): Bill {
   return {

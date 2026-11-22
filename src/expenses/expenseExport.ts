@@ -31,10 +31,14 @@ interface CostRow {
   line: string;
 }
 
+function billReclaimable(bill: Bill): number {
+  return bill.supplierVat.trim() !== '' ? bill.vatCents : 0;
+}
+
 function billRow(bill: Bill): CostRow {
   const line = [
     'bill', bill.issueDate, textCell(bill.supplier), textCell(bill.supplierVat), textCell(bill.number), '', '', bill.currency,
-    centsToAmount(bill.netCents), centsToAmount(bill.vatCents), '', '', centsToAmount(bill.notSubjectToVatCents), centsToAmount(bill.totalCents),
+    centsToAmount(bill.netCents), centsToAmount(bill.vatCents), '', centsToAmount(billReclaimable(bill)), centsToAmount(bill.notSubjectToVatCents), centsToAmount(bill.totalCents),
     bill.status, bill.paidOn ?? '', '', '', String(bill.proofFiles.length),
   ].join(',');
   return { date: bill.issueDate, line };

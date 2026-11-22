@@ -4,6 +4,7 @@ import { createMemoryStorage } from '../memoryStorage';
 import { FILED_BILL_JSON, PDF_BYTES } from '../testing/billFixtures';
 import { BillStatus } from './BillStatus';
 import { addBill, billDir, listBills, readBill } from './billFolder';
+import { vatSplitMissing } from './billFile';
 import type { BillInput } from './billFile';
 
 const FILED_DIR = 'bills/2026/example-26223';
@@ -63,6 +64,14 @@ describe('addBill', () => {
     await expect(adding).rejects.toMatchObject({ errors: [expect.objectContaining({ path: 'total' })] });
   });
 
+  it('with only the total entered, saves the bill flagged VAT split missing', async () => {
+    const storage = createMemoryStorage();
+
+    const bill = await addBill(storage, PDF_BYTES, input({ netCents: 0, vatCents: 0, totalCents: 11900 }));
+
+    expect({ total: (await readBill(storage, bill.dir)).totalCents, missing: vatSplitMissing(bill) }).toEqual({ total: 11900, missing: true });
+  });
+
   it('with the same supplier and number filed already, refuses', async () => {
     const storage = createMemoryStorage();
     await addBill(storage, PDF_BYTES, input());
@@ -88,5 +97,23 @@ describe('billDir', () => {
     const dir = billDir(name, '26223', '2026-11-02');
 
     expect(dir).toBe(FILED_DIR);
+  });
+});
+
+describe('vatSplitMissing', () => {
+  it('with net and VAT entered, returns false', () => {
+    const bill = input({ netCents: 10000, vatCents: 1900, totalCents: 11900 });
+
+    const missing = vatSplitMissing(bill);
+
+    expect(missing).toBe(false);
+  });
+
+  it('with only not subject to VAT entered, returns false', () => {
+    const bill = input({ netCents: 0, vatCents: 0, notSubjectToVatCents: 11900, totalCents: 11900 });
+
+    const missing = vatSplitMissing(bill);
+
+    expect(missing).toBe(false);
   });
 });

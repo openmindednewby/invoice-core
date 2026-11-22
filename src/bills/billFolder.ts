@@ -4,7 +4,7 @@ import type { InvoiceStorage } from '../storage';
 import { InvoiceError } from '../types';
 import { isRealDate } from '../validate';
 import { BillStatus } from './BillStatus';
-import { billFromJson, billToJson } from './billFile';
+import { billFromJson, billToJson, totalAccepted } from './billFile';
 import type { Bill, BillInput, BillJson } from './billFile';
 
 export const BILLS_DIR = 'bills';
@@ -72,8 +72,7 @@ function inputErrors(input: BillInput): InvoiceError | null {
     ...(input.number.trim().length === 0 ? [{ path: 'number', message: REQUIRED }] : []),
     ...(isRealDate(input.issueDate) ? [] : [{ path: 'issueDate', message: REAL_DATE }]),
     ...(input.dueDate === null || isRealDate(input.dueDate) ? [] : [{ path: 'dueDate', message: REAL_DATE }]),
-    ...(input.netCents + input.vatCents + input.notSubjectToVatCents === input.totalCents
-      ? [] : [{ path: 'total', message: 'must equal net + VAT + not subject to VAT' }]),
+    ...(totalAccepted(input) ? [] : [{ path: 'total', message: 'must equal net + VAT + not subject to VAT' }]),
   ];
   return errors.length > 0 ? new InvoiceError(errors) : null;
 }

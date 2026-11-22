@@ -4,7 +4,7 @@ import { createMemoryStorage } from '../memoryStorage';
 import { expenseInput } from '../testing/expenseFixtures';
 import { listExpenses } from './expenseFolder';
 import { receiptMissing } from './expenseReceipt';
-import { addRecurring, listRecurring, runRecurring } from './recurring';
+import { addRecurring, endRecurring, listRecurring, runRecurring, skipRecurringMonth } from './recurring';
 import type { RecurringInput } from './recurring';
 import type { ExpenseDetails } from './expenseFile';
 
@@ -75,5 +75,57 @@ describe('addRecurring', () => {
       'dayOfMonth: must be a day from 1 to 31; startMonth: must be a month as YYYY-MM',
       'endMonth: must not be before the start month',
     ]);
+  });
+});
+
+describe('endRecurring', () => {
+  it('with an end month after three added months, keeps them and adds none later', async () => {
+    const storage = createMemoryStorage();
+    const saved = await addRecurring(storage, plan());
+    await runRecurring(storage, '2026-03-21');
+
+    await endRecurring(storage, saved.id, '2026-03');
+
+    const later = await runRecurring(storage, '2026-11-21');
+    expect({ later: later.length, filed: (await listExpenses(storage)).expenses.map((expense) => expense.date) })
+      .toEqual({ later: 0, filed: ['2026-01-05', '2026-02-05', '2026-03-05'] });
+  });
+
+  it('with an end month before the start month, refuses', async () => {
+    const storage = createMemoryStorage();
+    const saved = await addRecurring(storage, plan());
+
+    const refused = await endRecurring(storage, saved.id, '2025-12').catch((error: Error) => error.message);
+
+    expect(refused).toBe('endMonth: must not be before the start month');
+  });
+
+  it('with an unknown plan id, refuses', async () => {
+    const storage = createMemoryStorage();
+
+    const refused = await endRecurring(storage, 'nope-2026-01', '2026-03').catch((error: Error) => error.message);
+
+    expect(refused).toBe('id: no recurring expense nope-2026-01');
+  });
+});
+
+describe('skipRecurringMonth', () => {
+  it('with a skipped month and the plan run again from the start, never adds that month', async () => {
+    const storage = createMemoryStorage();
+    const saved = await addRecurring(storage, plan({ endMonth: '2026-03' }));
+
+    await skipRecurringMonth(storage, saved.id, '2026-02');
+
+    const added = await runRecurring(storage, '2026-11-21');
+    expect(added.map((expense) => expense.date)).toEqual(['2026-01-05', '2026-03-05']);
+  });
+
+  it('with a month not written as YYYY-MM, refuses', async () => {
+    const storage = createMemoryStorage();
+    const saved = await addRecurring(storage, plan());
+
+    const refused = await skipRecurringMonth(storage, saved.id, '2026-2').catch((error: Error) => error.message);
+
+    expect(refused).toBe('month: must be a month as YYYY-MM');
   });
 });

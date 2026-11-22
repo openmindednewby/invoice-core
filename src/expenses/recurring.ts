@@ -1,11 +1,12 @@
 import { supplierSlug } from '../bills/billFolder';
 import type { InvoiceStorage } from '../storage';
 import { InvoiceError } from '../types';
+import type { FieldError } from '../types';
 import { readCategories } from './categories';
 import { firstFree, RECURRING_JSON } from './expensePaths';
 import { detailErrors, fileExpense, listExpenses } from './expenseFolder';
 import type { Expense, ExpenseDetails } from './expenseFile';
-import { dueDates, monthErrors } from './recurringPeriods';
+import { dueDates, isMonth, monthErrors } from './recurringPeriods';
 
 export interface RecurringInput extends ExpenseDetails {
   dayOfMonth: number;
@@ -16,6 +17,7 @@ export interface RecurringInput extends ExpenseDetails {
 export interface RecurringExpense extends RecurringInput {
   id: string;
   lastAddedMonth: string | null;
+  skippedMonths?: string[];
 }
 
 const LOCK = 'expense-recurring';
@@ -85,4 +87,32 @@ export function runRecurring(storage: InvoiceStorage, today: string): Promise<Ex
     await savePlans(storage, next);
     return added;
   });
+}
+
+function changePlan(storage: InvoiceStorage, id: string, change: (plan: RecurringExpense) => RecurringExpense, check: (plan: RecurringExpense) => FieldError[]): Promise<RecurringExpense> {
+  return storage.withLock(LOCK, async () => {
+    const plans = await listRecurring(storage);
+    const found = plans.find((plan) => plan.id === id);
+    if (found === undefined) {
+      throw new InvoiceError([{ path: 'id', message: `no recurring expense ${id}` }]);
+    }
+    const changed = change(found);
+    const errors = check(changed);
+    if (errors.length > 0) {
+      throw new InvoiceError(errors);
+    }
+    await savePlans(storage, plans.map((plan) => (plan.id === id ? changed : plan)));
+    return changed;
+  });
+}
+
+/** Stops a recurring expense after endMonth; the expenses it already added stay. */
+export function endRecurring(storage: InvoiceStorage, id: string, endMonth: string): Promise<RecurringExpense> {
+  return changePlan(storage, id, (plan) => ({ ...plan, endMonth }), monthErrors);
+}
+
+/** Records a deleted month of a recurring expense so runRecurring never adds it again. */
+export function skipRecurringMonth(storage: InvoiceStorage, id: string, month: string): Promise<RecurringExpense> {
+  return changePlan(storage, id, (plan) => ({ ...plan, skippedMonths: [...new Set([...(plan.skippedMonths ?? []), month])] }),
+    () => (isMonth(month) ? [] : [{ path: 'month', message: 'must be a month as YYYY-MM' }]));
 }
