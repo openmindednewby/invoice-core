@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.0
+
+- `loadSendDraft(storage, number, now)` builds the default email of an issued document: To and Cc from `contacts/<client>.json`, the filled template (unknown placeholders kept visible, `fillKeepingUnknown`), the Cyprus-clock greeting, the signature (`signBody`), From, PDF present, `sentOn`, last logged send and an open may-have-gone time. `isRepeatSend` says whether it went before. Moved unchanged from invoice-web so the web app and invoice-cli compose the same email (INVOICE-FU-17).
+- Greetings (`GreetingKind`, `withTimeGreeting`, `applyGreeting`, `greetingOf`, `greetingForTime`, `greetingText`, `cyprusHour`, `GREETINGS_IN_ORDER`) moved unchanged from invoice-web.
+- May-have-gone marker `send-uncertain/<number>.json`: `markUncertainSend`, `readUncertainSend` (a damaged file still counts as open), `clearUncertainSend`, `uncertainSendPath`; same file format the web app writes.
+
 ## 0.13.0
 
 - Bills saved with only the total: `vatSplitMissing(bill)` is true when net, VAT and not subject to VAT are all zero; such a bill is accepted instead of refused (D-AWAY-INV-5).
