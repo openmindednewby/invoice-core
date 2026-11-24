@@ -81,8 +81,8 @@ export { addProof, isProofFile, markBillPaid, markBillUnpaid, PROOF_DIR } from '
 export type { ProofFile } from './bills/billProof';
 export { billState, billTotals, paidWithoutProof, paySheet, sortBills } from './bills/billSummary';
 export type { BillTotals, PaySheet } from './bills/billSummary';
-export { createZip, crc32 } from './bills/zip';
-export type { ZipEntry } from './bills/zip';
+export { createZip, crc32 } from '@dloizides/utils/zip';
+export type { ZipEntry } from '@dloizides/utils/zip';
 export { addCategory, DEFAULT_EXPENSE_CATEGORIES, readCategories, renameCategory } from './expenses/categories';
 export type { ExpenseCategory } from './expenses/categories';
 export { costsCsv, exportCostsZip } from './expenses/expenseExport';

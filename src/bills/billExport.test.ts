@@ -1,3 +1,5 @@
+import { crc32, createZip } from '@dloizides/utils/zip';
+
 import { describe, expect, it } from 'vitest';
 
 import { createMemoryStorage } from '../memoryStorage';
@@ -5,7 +7,6 @@ import { FILED_BILL_JSON, PDF_BYTES, readZipNames } from '../testing/billFixture
 import { billsCsv, exportBillsZip, exportBillZip } from './billExport';
 import { listBills } from './billFolder';
 import { addProof } from './billProof';
-import { crc32, createZip } from './zip';
 
 const DIR = 'bills/2026/example-26223';
 

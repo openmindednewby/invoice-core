@@ -1,3 +1,6 @@
+import { createZip } from '@dloizides/utils/zip';
+import type { ZipEntry } from '@dloizides/utils/zip';
+
 import { textCell } from '../exportCsv';
 import { centsToAmount } from '../money';
 import type { InvoiceStorage } from '../storage';
@@ -6,8 +9,6 @@ import { isRealDate } from '../validate';
 import { BILL_JSON, BILL_PDF, BILLS_DIR, listBills, readBill } from './billFolder';
 import { PROOF_DIR } from './billProof';
 import type { Bill } from './billFile';
-import { createZip } from './zip';
-import type { ZipEntry } from './zip';
 
 const BOM = '﻿';
 const NEWLINE = '\r\n';

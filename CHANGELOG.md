@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.14.1
+
+- `createZip`, `crc32`, `ZipEntry` now come from `@dloizides/utils/zip` (^1.13.0) and are re-exported unchanged; `src/bills/zip.ts` removed (INV-EXTRACT-2 "Extraction leftovers after INV-EXTRACT-1").
+
 ## 0.14.0
 
 - `loadSendDraft(storage, number, now)` builds the default email of an issued document: To and Cc from `contacts/<client>.json`, the filled template (unknown placeholders kept visible, `fillKeepingUnknown`), the Cyprus-clock greeting, the signature (`signBody`), From, PDF present, `sentOn`, last logged send and an open may-have-gone time. `isRepeatSend` says whether it went before. Moved unchanged from invoice-web so the web app and invoice-cli compose the same email (INVOICE-FU-17).
