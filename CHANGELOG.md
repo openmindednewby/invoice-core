@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0
+
+- Bank statement import (INV-BANK-1 "BOC statement import"), no new dependency:
+  - `parseBocExport(bytes)` reads a Bank of Cyprus TransactionHistory xlsx (sheet `Activity_report_SIMPLE`); `parseBocRows(rows)` reads rows from any reader. Header block plus every line, amounts in signed cents (credit +, debit -). `readXlsxRows` is the built-in xlsx reader (zip + `DecompressionStream('deflate-raw')`).
+  - `importStatement(storage, statement, { fileName, bytes, directors })` stores lines in `bank/<account>/lines.json`, keeps the original under `bank/statements/<account>/<from>_<to>.<ext>` and returns `added` and `alreadyImported`. `lineKey` = account plus bank reference, else a hash of date, amount, description and balance; a repeated key inside one statement gets `#2`, `#3`.
+  - `classifyLine` sorts each line into a `LineKind`: Commission - Fee is a bank fee (`bank-charges`); a learnt payee rule; a credit from a director is owner money in; `Transfer-Internet-Debit Invoice <n>` is the payment of bill `<n>` (linked to the filed bill when one exists); a card purchase is an expense awaiting review; anything else is To review. `setLineKind` records the owner's choice and learns it for the payee (`bank/payee-rules.json`).
+  - `linkProof` / `unlinkProof` link a line to an expense, bill or invoice; `missingProof(lines, month)` lists expense, bill-payment and income lines without a proof file.
+  - `bankProofPack(lines, month, categories)` gives the month CSV (date, description, kind, category, amount, proof or MISSING, statement) and the statement files.
+
 ## 0.14.1
 
 - `createZip`, `crc32`, `ZipEntry` now come from `@dloizides/utils/zip` (^1.13.0) and are re-exported unchanged; `src/bills/zip.ts` removed (INV-EXTRACT-2 "Extraction leftovers after INV-EXTRACT-1").
