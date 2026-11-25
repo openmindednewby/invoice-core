@@ -115,3 +115,17 @@ export type { CellValue } from './bank/xlsxRead';
 export { markNotPaidBack, markPaidBack, payBackTotal, toPayBack } from './expenses/payBack';
 export { addRecurring, endRecurring, listRecurring, runRecurring, skipRecurringMonth } from './expenses/recurring';
 export type { RecurringExpense, RecurringInput } from './expenses/recurring';
+export { PayCap } from './tax/PayCap';
+export { taxReserve } from './tax/reserve';
+export type { ReserveInput, TaxReserve } from './tax/reserve';
+export { RuleStatus } from './tax/RuleStatus';
+export { incomeTaxCents, salaryCost } from './tax/salaryCost';
+export type { SalaryCost } from './tax/salaryCost';
+export { highestCost } from './tax/sourcedValue';
+export type { SourcedAlternative, SourcedValue } from './tax/sourcedValue';
+export { SourceType } from './tax/SourceType';
+export { TAX_RULES_CY_2026, taxRulesFor } from './tax/taxRules';
+export type {
+  CompanyChanges, ComplianceRules, CorporateRules, DividendRules, FilingRules, PayrollFund, PayrollRules,
+  PersonalIncomeTaxRules, TaxBand, TaxDeadline, TaxRules, TaxSource, VatRules,
+} from './tax/taxRuleTypes';
