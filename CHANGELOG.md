@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.16.0
+
+- Tax rules and reserve (INV-TAX-1 "Tax reserve per year"), no UI:
+  - `TAX_RULES_CY_2026` and `taxRulesFor(year)`: the Cyprus 2026 rule set (corporate tax, dividends, VAT, filing, deadlines, personal bands, payroll, compliance) with `sources`. Every value is a `SourcedValue` (`value`, `verified`, `sourceIds`, `note`, `alternatives`); `verified` is true only when a primary page that was read is cited. Where sources disagree every value is kept in `alternatives` and the value is unverified (D-TAX-3).
+  - `taxReserve({ year, incomeCents, expensesCents, vatChargedCents, vatReclaimableCents, plannedDividendsCents, plannedSalaryCents })` (each amount defaults to 0) returns corporate tax, VAT owed, dividend cost, salary cost (employer funds plus amounts withheld), reserve, safe to spend and the source ids used; null for a year with no rule set. `highestCost` takes the dearer of conflicting values, so the reserve is never short.
+  - `salaryCost`, `incomeTaxCents`, enums `PayCap`, `RuleStatus`, `SourceType`.
+
 ## 0.15.0
 
 - Bank statement import (INV-BANK-1 "BOC statement import"), no new dependency:
