@@ -1,5 +1,5 @@
 import { conflictingValue, unverifiedValue, verifiedValue } from './sourcedValue';
-import type { CompanyChanges, CorporateRules, DividendRules, FilingRules, TaxDeadline, VatRules } from './taxRuleTypes';
+import type { CompanyChanges, ConstructiveDividendCases, CorporateRules, DividendRules, FilingRules, TaxDeadline, VatRules } from './taxRuleTypes';
 
 const EY = 'ey-2026-0140';
 const BDO = 'bdo-2026-reform';
@@ -15,6 +15,11 @@ const GOVCY_VAT_FAQ = 'govcy-vat-faq';
 const BIC_INCOME_VAT = 'businessincyprus-income-vat';
 const MOF_PENALTY = 'mof-late-payment-penalty';
 const MOF_GUIDE = 'mof-temp-tax-guide-2021';
+const LAW_243 = 'govcy-law-243-2025';
+const SLIDES_243 = 'govcy-slides-243-2025';
+const LAW_245 = 'govcy-law-245-2025';
+const SLIDES_244 = 'govcy-slides-244-2025';
+const SLIDES_245 = 'govcy-slides-245-2025';
 const PROVISIONAL_SOURCES = [GOVCY_DEADLINES, BIC_INCOME_VAT, PWC_ADMIN];
 
 export const CORPORATE_CY_2026: CorporateRules = {
@@ -22,15 +27,29 @@ export const CORPORATE_CY_2026: CorporateRules = {
   lossCarryForwardYears: unverifiedValue(7, [EY], 'was 5 before 2026; no gov.cy page read states 7'),
 };
 
+const CONSTRUCTIVE_DIVIDEND_CASES: ConstructiveDividendCases = {
+  who: 'individual resident and domiciled in Cyprus (SDC sense) who is a shareholder of a Cyprus-resident company',
+  useOfCompanyAsset: 'market value of a company asset used by the shareholder or a connected person, on the date personal use starts, times the personal-use share (100% if the asset is not connected with the business); an increase in use is charged on market value at the increase; a decrease refunds nothing',
+  disposalBelowMarket: 'market value of a company asset disposed of to the shareholder or a connected person, minus the consideration paid, minus any use amount already charged on the same asset',
+  excluded: 'an asset the company received as a gift from that same shareholder or connected person',
+  noRefund: 'SDC paid under art. 3A is not refunded on a later art. 3 dividend, an asset contribution against the amount, or when use stops',
+  connectedPerson: 'as in Income Tax Law art. 33(3)(a) and (b)',
+  loansToShareholders: 'not in art. 3A; a loan is an Income Tax art. 5(1)(zeta) benefit, see directorLoanBenefitCoversIndirectShareholders',
+};
+
 export const DIVIDENDS_CY_2026: DividendRules = {
   defenceContributionRate: verifiedValue(0.05, [GOVCY_EAE, EY], 'resident domiciled individual, profits of 2026 onward'),
   defenceContributionRateLegacy: verifiedValue(0.17, [GOVCY_EAE, EY], 'profits up to 2025, received up to 31 Dec 2031'),
   gesyRate: verifiedValue(0.0265, [GOVCY_GESY, 'pwc-individual-other-taxes']),
-  gesyCapAppliesToDividends: verifiedValue(true, [GOVCY_GESY], 'the first 180,000 of total income is charged, salary first'),
+  gesyCapAppliesToDividends: verifiedValue(true, [GOVCY_GESY],
+    'one 180,000 cap across all income, charged by kind in table order: salary first, dividends after; employer 2.9% does not count'),
   deemedDistribution: verifiedValue(false, [GOVCY_EAE, EY, BDO], 'abolished for profits after 31 Dec 2025'),
-  constructiveDividendWithholdingRate: verifiedValue(0.1, [GOVCY_EAE, EY]),
-  constructiveDividendCases: unverifiedValue(null, [EY], 'unknown: no source lists the cases caught; needs the law text'),
-  directorLoanDeemedInterestRate: unverifiedValue(null, [EY, BDO], 'unknown: no source covers director loans under the 2026 rules'),
+  constructiveDividendWithholdingRate: verifiedValue(0.1, [LAW_245, GOVCY_EAE, 'govcy-tax-reform-2026', EY], 'SDC art. 3A(1), disguised dividend distribution'),
+  constructiveDividendCases: verifiedValue(CONSTRUCTIVE_DIVIDEND_CASES, [LAW_245, SLIDES_245], 'Law 245(I)/2025 s.4, new SDC art. 3A; slides 21-23 agree'),
+  directorLoanBenefitCoversIndirectShareholders: verifiedValue(true, [SLIDES_244],
+    'Income Tax art. 5(1)(zeta) and 5(2)(zeta) extended to indirect shareholders; Law 244(I)/2025 text not read'),
+  directorLoanDeemedInterestRate: unverifiedValue(null, [SLIDES_244, 'mondaq-reform-key-points'],
+    'unknown from a primary: the slides state no rate; 9% per year is secondary only'),
 };
 
 export const COMPANY_CHANGES_CY_2026: CompanyChanges = {
@@ -61,9 +80,13 @@ export const VAT_CY_2026: VatRules = {
 
 export const FILING_CY_2026: FilingRules = {
   provisionalTaxInstalments: verifiedValue(2, [GOVCY_DEADLINES, PWC_ADMIN]),
-  provisionalTaxUnderestimateSurcharge: unverifiedValue(0.1, [MOF_GUIDE], 'of final tax minus provisional tax; section 26 text not read'),
+  provisionalTaxUnderestimateSurcharge: unverifiedValue(0.1, [MOF_GUIDE, LAW_243],
+    'of final tax minus provisional tax; Law 243(I)/2025 read and leaves it unchanged; base-law text not read'),
   provisionalTaxUnderestimateThreshold: unverifiedValue(0.75, [MOF_GUIDE], 'estimate below 3/4 of final chargeable income'),
   provisionalRevisionDeadline: verifiedValue('31 December of the current year', ['govcy-provisional-revision']),
+  provisionalLateStarterRule: verifiedValue(
+    'a company incorporated, registered or becoming resident after 30 June (or an individual starting non-salary income after 30 June) files its provisional computation by 31 December of that year',
+    [LAW_243, SLIDES_243], 'Law 243(I)/2025 s.13, new proviso to art. 24'),
   latePaymentFineRate: verifiedValue(0.05, [GOVCY_PENALTIES, MOF_PENALTY]),
   latePaymentFineRateAfterTwoMonths: conflictingValue(0.05, [GOVCY_PENALTIES], [{ value: 0, sourceIds: [MOF_PENALTY, PWC_ADMIN] }],
     'gov.cy from 2026: a further 5% after 2 months; the secondary sources show a single 5%'),

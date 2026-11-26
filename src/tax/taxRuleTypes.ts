@@ -34,6 +34,16 @@ export interface CorporateRules {
   readonly lossCarryForwardYears: SourcedValue<number>;
 }
 
+export interface ConstructiveDividendCases {
+  readonly who: string;
+  readonly useOfCompanyAsset: string;
+  readonly disposalBelowMarket: string;
+  readonly excluded: string;
+  readonly noRefund: string;
+  readonly connectedPerson: string;
+  readonly loansToShareholders: string;
+}
+
 export interface DividendRules {
   readonly defenceContributionRate: SourcedValue<number>;
   readonly defenceContributionRateLegacy: SourcedValue<number>;
@@ -41,7 +51,8 @@ export interface DividendRules {
   readonly gesyCapAppliesToDividends: SourcedValue<boolean>;
   readonly deemedDistribution: SourcedValue<boolean>;
   readonly constructiveDividendWithholdingRate: SourcedValue<number>;
-  readonly constructiveDividendCases: SourcedValue<string | null>;
+  readonly constructiveDividendCases: SourcedValue<ConstructiveDividendCases>;
+  readonly directorLoanBenefitCoversIndirectShareholders: SourcedValue<boolean>;
   readonly directorLoanDeemedInterestRate: SourcedValue<number | null>;
 }
 
@@ -75,6 +86,7 @@ export interface FilingRules {
   readonly provisionalTaxUnderestimateSurcharge: SourcedValue<number>;
   readonly provisionalTaxUnderestimateThreshold: SourcedValue<number>;
   readonly provisionalRevisionDeadline: SourcedValue<string>;
+  readonly provisionalLateStarterRule: SourcedValue<string>;
   readonly latePaymentFineRate: SourcedValue<number>;
   readonly latePaymentFineRateAfterTwoMonths: SourcedValue<number>;
   readonly lateFilingFineCompanyEur: SourcedValue<number>;

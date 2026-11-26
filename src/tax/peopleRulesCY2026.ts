@@ -8,6 +8,7 @@ const BIC_SI = 'businessincyprus-social-insurance';
 const BIC_INCOME_VAT = 'businessincyprus-income-vat';
 const GOVCY_GESY = 'govcy-gesy';
 const SIS = 'sis-max-earnings-2026';
+const MLSI_HOLIDAY = 'mlsi-central-holiday-fund';
 const CAP_NOT_STATED = 'no primary source says which funds are capped';
 
 const insurableCap = unverifiedValue(PayCap.InsurableEarnings, [KPMG], CAP_NOT_STATED);
@@ -43,8 +44,8 @@ export const PAYROLL_CY_2026: PayrollRules = {
     socialCohesion: fund(verifiedValue(0.02, [BIC_SI, KPMG]), unverifiedValue(PayCap.None, [KPMG], 'one secondary source disputes the base')),
     gesy: fund(verifiedValue(0.029, [GOVCY_GESY, PWC_OTHER]), gesyCap),
     holidayFund: fund(
-      conflictingValue(0.08, [PWC_OTHER, BIC_SI], [{ value: 0, sourceIds: [KPMG] }],
-        'PwC 8% if not exempt; KPMG 2026 table has no row; businessincyprus names the fund without a rate'),
+      conflictingValue(0.08, [MLSI_HOLIDAY, PWC_OTHER, BIC_SI], [{ value: 0, sourceIds: [KPMG] }],
+        'mlsi: employer only, 8% for 20 or 24 days leave rising to 16% at 40 or 48 days; exemptible; KPMG has no row'),
       unverifiedValue(PayCap.InsurableEarnings, [PWC_OTHER], CAP_NOT_STATED),
     ),
   },
@@ -57,10 +58,11 @@ export const PAYROLL_CY_2026: PayrollRules = {
 };
 
 export const COMPLIANCE_CY_2026: ComplianceRules = {
-  auditRequired: unverifiedValue(true, ['mondaq-audit-requirements', 'pwc-corporate-tax-admin'],
-    'a review engagement may replace the audit below the size test'),
+  auditRequired: unverifiedValue(true, ['mondaq-audit-requirements', 'pwc-corporate-tax-admin', 'roc-sme'],
+    'not settled: companies.gov.cy states no audit rule; a review engagement may replace the audit below the size test'),
   reviewEngagementTurnoverLimitEur: unverifiedValue(300000, ['mondaq-audit-threshold-2026'], 'years starting on or after 6 Feb 2026; was 200,000'),
   reviewEngagementAssetsLimitEur: unverifiedValue(500000, ['mondaq-audit-threshold-2026'], 'gross assets, two consecutive years'),
-  recordRetentionYears: conflictingValue(7, ['businessincyprus-records'], [{ value: 6, sourceIds: ['ey-2026-0140'] }],
-    'portal says seven years; EY gives a six-year limitation period; law text not read'),
+  recordRetentionYears: conflictingValue(6, ['govcy-law-243-2025', 'govcy-slides-243-2025', 'ey-2026-0140'],
+    [{ value: 7, sourceIds: ['businessincyprus-records'] }],
+    'Law 243(I)/2025 ss.4 and 17: 6 years from the later of return deadline or filing; portal 7 matches the pre-2026 wording'),
 };
