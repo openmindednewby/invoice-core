@@ -54,13 +54,13 @@ describe('linkProof', () => {
     await storage.writeNew('invoices/2026/2026-3/2026-3.pdf', RECEIPT_BYTES);
     await linkProof(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '' }, ProofKind.Invoice, '2026-3');
 
-    const unlinked = await unlinkProof(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '');
+    const unlinked = await unlinkProof(storage, TEST_ACCOUNT, keys[4] ?? '');
 
     expect(unlinked.proof).toBeNull();
   });
 });
 
-describe('importStatement bill link' }, () => {
+describe('importStatement bill link', () => {
   it('with a bill of the paid invoice number, links the payment line to the bill PDF', async () => {
     const storage = createMemoryStorage();
     const bill = await addBill(storage, PDF_BYTES, BILL);

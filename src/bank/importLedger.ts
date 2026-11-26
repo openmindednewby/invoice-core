@@ -68,8 +68,10 @@ function freeKey(used: Set<string>, account: string, line: BankLine): string {
   }
   const stable = `${base}#${hash(fingerprint(line))}`;
   let key = stable;
-  for (let copy = 2; used.has(key); copy += 1) {
+  let copy = 2;
+  while (used.has(key)) {
     key = `${stable}-${String(copy)}`;
+    copy += 1;
   }
   return key;
 }
