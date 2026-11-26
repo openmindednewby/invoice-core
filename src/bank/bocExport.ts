@@ -1,8 +1,9 @@
+import type { CellValue } from '@dloizides/utils/xlsx';
+
 import { InvoiceError } from '../types';
 import type { BankLine, BocStatement } from './bankLine';
 import { cellCents, cellDate, cellText, datesIn } from './cellValues';
-import { readXlsxRows } from './xlsxRead';
-import type { CellValue } from './xlsxRead';
+import { readXlsxRows } from './xlsxRows';
 
 export const BOC_SHEET = 'Activity_report_SIMPLE';
 

@@ -1,5 +1,5 @@
 import { CENTS_PER_UNIT } from './cents';
-import type { CellValue } from './xlsxRead';
+import type { CellValue } from '@dloizides/utils/xlsx';
 
 const EXCEL_EPOCH_OFFSET = 25569;
 const MS_PER_DAY = 86400000;

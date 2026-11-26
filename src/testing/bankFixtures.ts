@@ -1,6 +1,7 @@
 import { deflateRawSync } from 'node:zlib';
 
-import type { CellValue } from '../bank/xlsxRead';
+import type { CellValue } from '@dloizides/utils/xlsx';
+import { crc32 } from '@dloizides/utils/zip';
 
 export const TEST_ACCOUNT = '000000000000';
 export const TEST_DIRECTOR = 'Jane Example';
@@ -75,21 +76,6 @@ function sheetXml(rows: CellValue[][], strings: string[]): string {
   return `<?xml version="1.0"?><worksheet><sheetData>${rowXml.join('')}</sheetData></worksheet>`;
 }
 
-const CRC_TABLE = Array.from({ length: 256 }, (_unused, index) => {
-  let value = index;
-  for (let bit = 0; bit < 8; bit += 1) {
-    value = (value & 1) === 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-  }
-  return value >>> 0;
-});
-
-function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc = (CRC_TABLE[(crc ^ byte) & 0xff] ?? 0) ^ (crc >>> 8);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
 
 function zip(files: Array<{ name: string; text: string }>): Uint8Array {
   const parts: Buffer[] = [];

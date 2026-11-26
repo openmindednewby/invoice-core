@@ -112,8 +112,8 @@ export { deletePayeeRule, readPayeeRules, upsertPayeeRule } from './bank/payeeRu
 export type { PayeeRule } from './bank/payeeRules';
 export { linkProof, missingProof, needsProof, proofFiles, proofMissing, unlinkProof } from './bank/proof';
 export { ProofKind } from './bank/ProofKind';
-export { readXlsxRows } from './bank/xlsxRead';
-export type { CellValue } from './bank/xlsxRead';
+export { readXlsxRows } from './bank/xlsxRows';
+export type { CellValue } from '@dloizides/utils/xlsx';
 export { markNotPaidBack, markPaidBack, payBackTotal, toPayBack } from './expenses/payBack';
 export { addRecurring, endRecurring, listRecurring, runRecurring, skipRecurringMonth } from './expenses/recurring';
 export type { RecurringExpense, RecurringInput } from './expenses/recurring';
