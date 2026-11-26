@@ -101,4 +101,20 @@ describe('paySheet', () => {
 
     expect(sheet).toEqual({ payee: 'Example Supplier', bank: 'Example Bank', iban: 'CY17', swift: 'EXBKCY2N', amount: '844.00', currency: 'EUR', reference: 'Invoice 26223' });
   });
+
+  it('with a supplier that has no IBAN or SWIFT, omits both fields', () => {
+    const noBank = bill({ supplier: 'Example Supplier', number: '7', payTo: { bank: 'Example Bank', iban: '', swift: '  ' } });
+
+    const sheet = paySheet(noBank);
+
+    expect(sheet).toEqual({ payee: 'Example Supplier', bank: 'Example Bank', amount: '10.00', currency: 'EUR', reference: 'Invoice 7' });
+  });
+
+  it('with no bank details at all, gives only payee, amount and reference', () => {
+    const none = bill({ supplier: 'Example Supplier', number: '8', payTo: { bank: '', iban: '', swift: '' } });
+
+    const sheet = paySheet(none);
+
+    expect(Object.keys(sheet)).toEqual(['payee', 'amount', 'currency', 'reference']);
+  });
 });

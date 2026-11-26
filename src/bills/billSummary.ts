@@ -10,9 +10,9 @@ export interface BillTotals {
 
 export interface PaySheet {
   payee: string;
-  bank: string;
-  iban: string;
-  swift: string;
+  bank?: string;
+  iban?: string;
+  swift?: string;
   amount: string;
   currency: string;
   reference: string;
@@ -59,10 +59,15 @@ export function paidWithoutProof(bill: Bill): boolean {
   return bill.status === BillStatus.Paid && bill.proofFiles.length === 0;
 }
 
-/** What to type into the bank to pay a bill; the reference names the bill number. */
+function filledOnly(fields: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(fields).filter(([, value]) => value.trim().length > 0));
+}
+
+/** What to type into the bank to pay a bill; a blank bank, IBAN or SWIFT is left out. */
 export function paySheet(bill: Bill): PaySheet {
+  const { bank, iban, swift } = bill.payTo;
   return {
-    payee: bill.supplier, bank: bill.payTo.bank, iban: bill.payTo.iban, swift: bill.payTo.swift,
+    payee: bill.supplier, ...filledOnly({ bank, iban, swift }),
     amount: centsToAmount(bill.totalCents), currency: bill.currency, reference: `Invoice ${bill.number}`,
   };
 }
