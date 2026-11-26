@@ -100,13 +100,15 @@ export { BANK_CHARGES_CATEGORY, BANK_DIR, ledgerPath, PAYEE_RULES_JSON, STATEMEN
 export { BOC_SHEET, parseBocExport, parseBocRows } from './bank/bocExport';
 export { bankProofPack, MISSING_PROOF } from './bank/proofPack';
 export type { BankProofPack } from './bank/proofPack';
-export { classifyLine, learnPayeeRule, payeeOf, setLineKind } from './bank/classify';
+export { applyMapping, classifyLine, mappingFor, matchesMapping, payeeOf, setLineKind } from './bank/classify';
 export type { ClassifyContext } from './bank/classify';
+export { ClassSource } from './bank/ClassSource';
+export { payeeKey } from './bank/payeeText';
 export { importStatement, lineKey, statementPath } from './bank/importLedger';
 export type { ImportOptions, ImportResult } from './bank/importLedger';
 export { listBankAccounts, readLedger } from './bank/ledgerStore';
 export { LineKind } from './bank/LineKind';
-export { readPayeeRules } from './bank/payeeRules';
+export { deletePayeeRule, readPayeeRules, upsertPayeeRule } from './bank/payeeRules';
 export type { PayeeRule } from './bank/payeeRules';
 export { linkProof, missingProof, needsProof, proofFiles, proofMissing, unlinkProof } from './bank/proof';
 export { ProofKind } from './bank/ProofKind';

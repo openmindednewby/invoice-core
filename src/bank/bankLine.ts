@@ -1,3 +1,4 @@
+import type { ClassSource } from './ClassSource';
 import type { LineKind } from './LineKind';
 import type { ProofKind } from './ProofKind';
 
@@ -36,6 +37,13 @@ export interface LineClass {
   category: string | null;
   needsReview: boolean;
   billNumber: string | null;
+  invoiceNumbers: string[];
+  why: LineWhy;
+}
+
+export interface LineWhy {
+  source: ClassSource;
+  match: string | null;
 }
 
 export interface LedgerLine extends BankLine, LineClass {

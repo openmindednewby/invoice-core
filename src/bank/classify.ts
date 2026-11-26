@@ -1,98 +1,73 @@
 import type { InvoiceStorage } from '../storage';
+import { byBankType, byCardCode, byWord, sorted, unsorted } from './autoClass';
 import type { BankLine, LedgerLine, LineClass, LineRef } from './bankLine';
-import { BANK_CHARGES_CATEGORY } from './bankPaths';
-import { updateLedgerLine } from './ledgerStore';
-import { LineKind } from './LineKind';
-import { PAYEE_RULES_LOCK, readPayeeRules, savePayeeRules } from './payeeRules';
+import { bankLock } from './bankPaths';
+import { ClassSource } from './ClassSource';
+import { readLedger, saveLedger, updateLedgerLine } from './ledgerStore';
+import type { LineKind } from './LineKind';
+import { PAYEE_RULES_LOCK, readPayeeRules, savePayeeRules, withRule } from './payeeRules';
 import type { PayeeRule } from './payeeRules';
+import { hasPhrase, payeeKey, payeeOf } from './payeeText';
 
-const FEE_TYPE = 'commission - fee';
-const CARD_TYPE = 'card purchase';
-const CARD_MARKER = ' PURCHASE ';
-const INTERNET_DEBIT_MARKER = 'TRANSFER-INTERNET-DEBIT ';
-const FROM_MARKER = ' FROM ';
-const SENDER_END = '>';
-const INVOICE_PAID = /^Invoice\s(\S+)/i;
+export { payeeOf } from './payeeText';
 
 export interface ClassifyContext {
   directors: string[];
   rules: PayeeRule[];
 }
 
-function normalise(value: string): string {
-  return value.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z0-9-]+/g, ' ').trim();
+/** Whether a mapping applies to a line: its description holds the mapping text as whole words. */
+export function matchesMapping(line: BankLine, rule: PayeeRule): boolean {
+  return hasPhrase(line.description, rule.contains);
 }
 
-function words(value: string): string[] {
-  return normalise(value).split(' ').filter((word) => word.length > 0);
+function byMapping(line: BankLine, rules: PayeeRule[]): LineClass | null {
+  const rule = rules.filter((candidate) => matchesMapping(line, candidate)).reduce<PayeeRule | null>(
+    (best, candidate) => (best === null || candidate.contains.trim().length > best.contains.trim().length ? candidate : best), null);
+  return rule === null ? null : sorted(rule, ClassSource.Mapping, rule.contains);
 }
 
-function isDirector(payee: string, directors: string[]): boolean {
-  const payeeWords = new Set(words(payee));
-  return directors.some((director) => words(director).length > 0 && words(director).every((word) => payeeWords.has(word)));
-}
-
-function cardMerchant(description: string): string | null {
-  const at = description.toUpperCase().indexOf(CARD_MARKER);
-  return at <= 0 ? null : description.slice(0, at);
-}
-
-function internetDebitText(description: string): string | null {
-  const at = description.toUpperCase().indexOf(INTERNET_DEBIT_MARKER);
-  return at < 0 ? null : description.slice(at + INTERNET_DEBIT_MARKER.length).trim();
-}
-
-function sender(description: string): string | null {
-  const at = description.toUpperCase().indexOf(FROM_MARKER);
-  const end = at < 0 ? -1 : description.indexOf(SENDER_END, at);
-  return end < 0 ? null : description.slice(at + FROM_MARKER.length, end);
-}
-
-function sorted(kind: LineKind, category: string | null, needsReview: boolean, billNumber: string | null = null): LineClass {
-  return { kind, category, needsReview, billNumber };
-}
-
-/** The payee of a line: the merchant of a card purchase, the free text of an internet debit, the sender of a transfer. */
-export function payeeOf(line: BankLine): string {
-  return normalise(cardMerchant(line.description) ?? internetDebitText(line.description) ?? sender(line.description) ?? line.description);
-}
-
-/** Sorts a line into one kind by the built-in rules and the learnt payee rules; a line no rule sorts is To review. */
+/** Sorts a line by mapping, card code, bank type, then word; a line none of them sorts is to review. */
 export function classifyLine(line: BankLine, context: ClassifyContext): LineClass {
-  if (line.type.trim().toLowerCase() === FEE_TYPE) {
-    return sorted(LineKind.BankFee, BANK_CHARGES_CATEGORY, false);
-  }
-  const payee = payeeOf(line);
-  const rule = context.rules.find((candidate) => candidate.payee === payee);
-  if (rule !== undefined) {
-    return sorted(rule.kind, rule.category, false);
-  }
-  if (line.amountCents > 0 && sender(line.description) !== null && isDirector(payee, context.directors)) {
-    return sorted(LineKind.OwnerMoneyIn, null, false);
-  }
-  const invoice = line.amountCents < 0 ? INVOICE_PAID.exec(internetDebitText(line.description) ?? '') : null;
-  if (invoice?.[1] !== undefined) {
-    return sorted(LineKind.Expense, null, false, invoice[1]);
-  }
-  if (line.type.trim().toLowerCase().startsWith(CARD_TYPE)) {
-    return sorted(LineKind.Expense, null, true);
-  }
-  return sorted(LineKind.ToReview, null, true);
+  return byMapping(line, context.rules) ?? byCardCode(line) ?? byBankType(line, context.directors) ?? byWord(line) ?? unsorted(line);
 }
 
-/** The rules with the owner's choice for this line's payee, replacing an earlier rule of that payee. */
-export function learnPayeeRule(rules: PayeeRule[], line: BankLine, kind: LineKind, category: string | null): PayeeRule[] {
-  const payee = payeeOf(line);
-  return [...rules.filter((rule) => rule.payee !== payee), { payee, kind, category }];
+/** The mapping that sorts every line of this line's payee the way the owner chose. */
+export function mappingFor(line: BankLine, kind: LineKind, category: string | null): PayeeRule {
+  return { contains: payeeKey(payeeOf(line)), kind, category };
 }
 
-/** Sets a line's kind and category from the owner's choice and learns it for later lines of the same payee. */
+/** Sets a line's kind and category by hand, so no rule re-sorts it, and maps its payee for later lines. */
 export function setLineKind(storage: InvoiceStorage, target: LineRef, kind: LineKind, category: string | null): Promise<LedgerLine> {
   const { account, key } = target;
   return updateLedgerLine(storage, account, key, async (line) => {
-    if (line.billNumber === null) {
-      await storage.withLock(PAYEE_RULES_LOCK, async () => savePayeeRules(storage, learnPayeeRule(await readPayeeRules(storage), line, kind, category)));
+    const rule = mappingFor(line, kind, category);
+    if (line.billNumber === null && rule.contains !== '') {
+      await storage.withLock(PAYEE_RULES_LOCK, async () => savePayeeRules(storage, withRule(await readPayeeRules(storage), rule.contains, rule)));
     }
-    return { ...line, kind, category, needsReview: false };
+    return { ...line, kind, category, needsReview: false, why: { source: ClassSource.Manual, match: null } };
+  });
+}
+
+function mappable(line: LedgerLine, rule: PayeeRule): boolean {
+  return line.why.source !== ClassSource.Manual && line.billNumber === null && matchesMapping(line, rule);
+}
+
+/** Sorts the earlier lines a mapping matches, never one set by hand or paying a bill; returns the count. */
+export function applyMapping(storage: InvoiceStorage, account: string, rule: PayeeRule): Promise<number> {
+  return storage.withLock(bankLock(account), async () => {
+    const lines = await readLedger(storage, account);
+    let changed = 0;
+    const updated = lines.map((line) => {
+      if (!mappable(line, rule)) {
+        return line;
+      }
+      changed += 1;
+      return { ...line, ...sorted(rule, ClassSource.Mapping, rule.contains), invoiceNumbers: line.invoiceNumbers };
+    });
+    if (changed > 0) {
+      await saveLedger(storage, account, updated);
+    }
+    return changed;
   });
 }

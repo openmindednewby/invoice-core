@@ -3,6 +3,7 @@ import type { InvoiceStorage } from '../storage';
 import { InvoiceError } from '../types';
 import type { LedgerLine } from './bankLine';
 import { BANK_DIR, bankLock, ledgerPath, STATEMENTS } from './bankPaths';
+import { ClassSource } from './ClassSource';
 
 /** The stored lines of one account, newest first; empty before the first import. */
 export async function readLedger(storage: InvoiceStorage, account: string): Promise<LedgerLine[]> {
@@ -11,7 +12,14 @@ export async function readLedger(storage: InvoiceStorage, account: string): Prom
     return [];
   }
   const parsed: unknown = JSON.parse(saved);
-  return Array.isArray(parsed) ? (parsed as LedgerLine[]) : [];
+  return Array.isArray(parsed) ? (parsed as StoredLine[]).map(withWhy) : [];
+}
+
+type StoredLine = Omit<LedgerLine, 'why' | 'invoiceNumbers'> & Partial<Pick<LedgerLine, 'why' | 'invoiceNumbers'>>;
+
+function withWhy(line: StoredLine): LedgerLine {
+  const why = line.why ?? { source: line.needsReview ? ClassSource.None : ClassSource.Manual, match: null };
+  return { ...line, why, invoiceNumbers: line.invoiceNumbers ?? [] };
 }
 
 /** Writes the lines of one account. */
