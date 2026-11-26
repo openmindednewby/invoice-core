@@ -10,7 +10,10 @@ const PWC_REVIEWED = '2026-08-04';
 const MONDAQ = 'Mondaq (law-firm article)';
 const GOVCY_TAX = 'https://www.gov.cy/mof-tax/documents/';
 
-function primary(title: string, publisher: string, url: string, readInFull: boolean, published: string | null = null): TaxSource {
+type SourceDoc = Pick<TaxSource, 'title' | 'publisher' | 'url'>;
+
+function primary(doc: SourceDoc, readInFull: boolean, published: string | null = null): TaxSource {
+  const { title, publisher, url } = doc;
   return { title, publisher, type: SourceType.Primary, url, published, checked: CHECKED, readInFull };
 }
 
@@ -47,30 +50,18 @@ export const SOURCES_CY_2026: Readonly<Record<string, TaxSource>> = {
     'https://www.mondaq.com/cyprus/audit/1738254/audit-threshold-increased-to-%e2%82%ac300000-what-it-means-for-cyprus-companies', null, false),
   'mondaq-audit-requirements': secondary('Cyprus statutory audit requirements: what finance teams need to know', MONDAQ,
     'https://www.mondaq.com/cyprus/corporate-tax/1763942/cyprus-statutory-audit-requirements-what-finance-teams-need-to-know', null, false),
-  'govcy-tf4-company-return': primary('Company income tax return (TF4) page', TAX_DEPARTMENT,
-    `${GOVCY_TAX}forologiki-dilosi-eisodimatos-etaireias-t-f-4-aytoergodotoymenoy-me-elegmenoys-logariasmoys-t-f-1/`, true),
-  'govcy-eae': primary('Special Defence Contribution (EAE), rate table', TAX_DEPARTMENT,
-    `${GOVCY_TAX}ektakti-amyntiki-eisfora-eae/`, false),
-  'govcy-gesy': primary('GESY contribution (Tax Department)', TAX_DEPARTMENT, `${GOVCY_TAX}geniko-systima-ygeias-gesy/`, true),
-  'govcy-vat-rates': primary('VAT rates', TAX_DEPARTMENT, `${GOVCY_TAX}syntelestes-f-p-a/`, true),
-  'govcy-deadlines': primary('Deadlines calendar (VAT, income tax, provisional tax); VAT and income tax sections read', TAX_DEPARTMENT,
-    'https://www.gov.cy/mof-tax/prothesmies/', false),
-  'govcy-vat-faq': primary('VAT return FAQ; late-return answer truncated after 10 percent', TAX_DEPARTMENT,
-    `${GOVCY_TAX}ypovoli-tropopoiisi-diloseon-f-p-a/sychnes-erotiseis-dilosis-f-p-a/`, false),
-  'govcy-vies': primary('VIES general information', TAX_DEPARTMENT,
-    'https://www.gov.cy/mof-tax/en/documents/paneyropaikes-platformes/vies-vat-information-exchange-system/genikes-plirofories-2/', true, '2026-03-20'),
-  'govcy-default-interest': primary('Default interest, general information', TAX_DEPARTMENT,
-    'https://www.gov.cy/mof-tax/en/documents/default-interest-monetary-charges-administrative-fines-additional-tax/default-interest-monetary-charges-administrative-fines-additional-tax-general-information/', true),
-  'govcy-penalties': primary('Default interest, monetary charges, fines (direct taxation)', TAX_DEPARTMENT,
-    `${GOVCY_TAX}tokos-yperimerias-chrimatikes-epivarynseis-dioikitika-prostima-prosthetos-foros/tokos-yperimerias-chrimatikes-epivarynseis-dioikitika-prostima-prosthetos-foros-amesis-forologias/`, true),
-  'govcy-provisional-revision': primary('FAQ on revising provisional tax (code 0200)', TAX_DEPARTMENT,
-    `${GOVCY_TAX}forologiki-dilosi-eisodimatos-atomoy/sychnes-erotiseis-kai-paradeigmata-gia-tin-anatheorisi-prosorinis-forologias-kod-foroy-0200/`, true),
-  'sis-max-earnings-2026': primary('Maximum insurable earnings 2026 notice', 'Social Insurance Services (sisweb.mlsi.gov.cy)',
-    'https://sisweb.mlsi.gov.cy/anotato2025/', true),
-  'businessincyprus-social-insurance': primary('Social insurance registration and contributions', BUSINESS_IN_CYPRUS,
-    'https://www.businessincyprus.gov.cy/social-insurance-registration-and-contributions/', true),
-  'businessincyprus-income-vat': primary('Registering for income tax and VAT in Cyprus', BUSINESS_IN_CYPRUS,
-    'https://www.businessincyprus.gov.cy/doing-business-in-cyprus/start-your-business/registering-for-income-tax-and-value-added-tax/', true),
-  'businessincyprus-records': primary('Business in Cyprus government portal: record keeping', BUSINESS_IN_CYPRUS,
-    'https://www.businessincyprus.gov.cy/?p=1431', true),
+  'govcy-tf4-company-return': primary({ title: 'Company income tax return (TF4) page', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}forologiki-dilosi-eisodimatos-etaireias-t-f-4-aytoergodotoymenoy-me-elegmenoys-logariasmoys-t-f-1/` }, true),
+  'govcy-eae': primary({ title: 'Special Defence Contribution (EAE), rate table', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}ektakti-amyntiki-eisfora-eae/` }, false),
+  'govcy-gesy': primary({ title: 'GESY contribution (Tax Department)', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}geniko-systima-ygeias-gesy/` }, true),
+  'govcy-vat-rates': primary({ title: 'VAT rates', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}syntelestes-f-p-a/` }, true),
+  'govcy-deadlines': primary({ title: 'Deadlines calendar (VAT, income tax, provisional tax); VAT and income tax sections read', publisher: TAX_DEPARTMENT, url: 'https://www.gov.cy/mof-tax/prothesmies/' }, false),
+  'govcy-vat-faq': primary({ title: 'VAT return FAQ; late-return answer truncated after 10 percent', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}ypovoli-tropopoiisi-diloseon-f-p-a/sychnes-erotiseis-dilosis-f-p-a/` }, false),
+  'govcy-vies': primary({ title: 'VIES general information', publisher: TAX_DEPARTMENT, url: 'https://www.gov.cy/mof-tax/en/documents/paneyropaikes-platformes/vies-vat-information-exchange-system/genikes-plirofories-2/' }, true, '2026-03-20'),
+  'govcy-default-interest': primary({ title: 'Default interest, general information', publisher: TAX_DEPARTMENT, url: 'https://www.gov.cy/mof-tax/en/documents/default-interest-monetary-charges-administrative-fines-additional-tax/default-interest-monetary-charges-administrative-fines-additional-tax-general-information/' }, true),
+  'govcy-penalties': primary({ title: 'Default interest, monetary charges, fines (direct taxation)', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}tokos-yperimerias-chrimatikes-epivarynseis-dioikitika-prostima-prosthetos-foros/tokos-yperimerias-chrimatikes-epivarynseis-dioikitika-prostima-prosthetos-foros-amesis-forologias/` }, true),
+  'govcy-provisional-revision': primary({ title: 'FAQ on revising provisional tax (code 0200)', publisher: TAX_DEPARTMENT, url: `${GOVCY_TAX}forologiki-dilosi-eisodimatos-atomoy/sychnes-erotiseis-kai-paradeigmata-gia-tin-anatheorisi-prosorinis-forologias-kod-foroy-0200/` }, true),
+  'sis-max-earnings-2026': primary({ title: 'Maximum insurable earnings 2026 notice', publisher: 'Social Insurance Services (sisweb.mlsi.gov.cy)', url: 'https://sisweb.mlsi.gov.cy/anotato2025/' }, true),
+  'businessincyprus-social-insurance': primary({ title: 'Social insurance registration and contributions', publisher: BUSINESS_IN_CYPRUS, url: 'https://www.businessincyprus.gov.cy/social-insurance-registration-and-contributions/' }, true),
+  'businessincyprus-income-vat': primary({ title: 'Registering for income tax and VAT in Cyprus', publisher: BUSINESS_IN_CYPRUS, url: 'https://www.businessincyprus.gov.cy/doing-business-in-cyprus/start-your-business/registering-for-income-tax-and-value-added-tax/' }, true),
+  'businessincyprus-records': primary({ title: 'Business in Cyprus government portal: record keeping', publisher: BUSINESS_IN_CYPRUS, url: 'https://www.businessincyprus.gov.cy/?p=1431' }, true),
 };

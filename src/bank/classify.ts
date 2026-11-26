@@ -1,5 +1,5 @@
 import type { InvoiceStorage } from '../storage';
-import type { BankLine, LedgerLine, LineClass } from './bankLine';
+import type { BankLine, LedgerLine, LineClass, LineRef } from './bankLine';
 import { BANK_CHARGES_CATEGORY } from './bankPaths';
 import { updateLedgerLine } from './ledgerStore';
 import { LineKind } from './LineKind';
@@ -87,7 +87,8 @@ export function learnPayeeRule(rules: PayeeRule[], line: BankLine, kind: LineKin
 }
 
 /** Sets a line's kind and category from the owner's choice and learns it for later lines of the same payee. */
-export function setLineKind(storage: InvoiceStorage, account: string, key: string, kind: LineKind, category: string | null): Promise<LedgerLine> {
+export function setLineKind(storage: InvoiceStorage, target: LineRef, kind: LineKind, category: string | null): Promise<LedgerLine> {
+  const { account, key } = target;
   return updateLedgerLine(storage, account, key, async (line) => {
     if (line.billNumber === null) {
       await storage.withLock(PAYEE_RULES_LOCK, async () => savePayeeRules(storage, learnPayeeRule(await readPayeeRules(storage), line, kind, category)));

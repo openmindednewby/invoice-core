@@ -34,7 +34,7 @@ describe('linkProof', () => {
     const expense = await addExpense(storage, expenseInput());
     await addReceipt(storage, expense.dir, [{ name: 'till.pdf', bytes: RECEIPT_BYTES }]);
 
-    const linked = await linkProof(storage, TEST_ACCOUNT, keys[3] ?? '', ProofKind.Expense, expense.dir);
+    const linked = await linkProof(storage, { account: TEST_ACCOUNT, key: keys[3] ?? '' }, ProofKind.Expense, expense.dir);
 
     expect({ proof: linked.proof, saved: (await readLedger(storage, TEST_ACCOUNT))[3]?.proof })
       .toEqual({ proof: { kind: ProofKind.Expense, ref: expense.dir, files: [`${expense.dir}/receipt/till.pdf`] }, saved: linked.proof });
@@ -44,7 +44,7 @@ describe('linkProof', () => {
     const { storage, keys } = await imported();
     await storage.writeNew('invoices/2026/2026-3/2026-3.pdf', RECEIPT_BYTES);
 
-    const linked = await linkProof(storage, TEST_ACCOUNT, keys[4] ?? '', ProofKind.Invoice, '2026-3');
+    const linked = await linkProof(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '' }, ProofKind.Invoice, '2026-3');
 
     expect(linked.proof).toEqual({ kind: ProofKind.Invoice, ref: '2026-3', files: ['invoices/2026/2026-3/2026-3.pdf'] });
   });
@@ -52,15 +52,15 @@ describe('linkProof', () => {
   it('with an unlink, clears the proof again', async () => {
     const { storage, keys } = await imported();
     await storage.writeNew('invoices/2026/2026-3/2026-3.pdf', RECEIPT_BYTES);
-    await linkProof(storage, TEST_ACCOUNT, keys[4] ?? '', ProofKind.Invoice, '2026-3');
+    await linkProof(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '' }, ProofKind.Invoice, '2026-3');
 
-    const unlinked = await unlinkProof(storage, TEST_ACCOUNT, keys[4] ?? '');
+    const unlinked = await unlinkProof(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '');
 
     expect(unlinked.proof).toBeNull();
   });
 });
 
-describe('importStatement bill link', () => {
+describe('importStatement bill link' }, () => {
   it('with a bill of the paid invoice number, links the payment line to the bill PDF', async () => {
     const storage = createMemoryStorage();
     const bill = await addBill(storage, PDF_BYTES, BILL);
@@ -71,10 +71,22 @@ describe('importStatement bill link', () => {
   });
 });
 
+describe('importStatement bill link by amount', () => {
+  it('with a bill of the paid number but another total, leaves the payment line without proof', async () => {
+    const storage = createMemoryStorage();
+    await addBill(storage, PDF_BYTES, { ...BILL, number: '2026-17', notSubjectToVatCents: 5990, totalCents: 30000 });
+    const payment = { date: '2026-10-15', description: '1Bank - Transfer-Internet-Debit Invoice 2026-17', type: 'BOC Transfer', debit: 240.1, credit: null, balance: 749.56, bankReference: 'BR3' };
+
+    const result = await importStatement(storage, parseBocRows(bocRows([payment])), OPTIONS);
+
+    expect({ bill: result.lines[0]?.billNumber, proof: result.lines[0]?.proof }).toEqual({ bill: '2026-17', proof: null });
+  });
+});
+
 describe('missingProof', () => {
   it('with a month, lists every expense, bill-payment or income line without proof', async () => {
     const { storage, keys } = await imported();
-    await setLineKind(storage, TEST_ACCOUNT, keys[4] ?? '', LineKind.Income, null);
+    await setLineKind(storage, { account: TEST_ACCOUNT, key: keys[4] ?? '' }, LineKind.Income, null);
 
     const missing = missingProof(await readLedger(storage, TEST_ACCOUNT), '2026-10');
 
@@ -84,7 +96,7 @@ describe('missingProof', () => {
   it('with a linked expense whose receipt is still missing, keeps it in the list', async () => {
     const { storage, keys } = await imported();
     const expense = await addExpense(storage, expenseInput());
-    await linkProof(storage, TEST_ACCOUNT, keys[3] ?? '', ProofKind.Expense, expense.dir);
+    await linkProof(storage, { account: TEST_ACCOUNT, key: keys[3] ?? '' }, ProofKind.Expense, expense.dir);
 
     const missing = missingProof(await readLedger(storage, TEST_ACCOUNT), '2026-10');
 

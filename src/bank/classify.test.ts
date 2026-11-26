@@ -95,7 +95,7 @@ describe('setLineKind', () => {
     const storage = createMemoryStorage();
     const first = await importStatement(storage, parseBocRows(bocRows()), { fileName: 'a.xlsx', bytes: bocXlsx(), directors: [] });
     const cafe = first.lines[3]?.key ?? '';
-    await setLineKind(storage, TEST_ACCOUNT, cafe, LineKind.Expense, 'meals-and-entertainment');
+    await setLineKind(storage, { account: TEST_ACCOUNT, key: cafe }, LineKind.Expense, 'meals-and-entertainment');
     const later = { ...line(3), date: '2026-11-09' };
     const laterRow = { ...FIXTURE_LINES[3], date: '2026-11-09', bankReference: 'BR0000000009' } as (typeof FIXTURE_LINES)[number];
 
@@ -112,7 +112,7 @@ describe('setLineKind', () => {
   it('with an unknown line key, refuses it', async () => {
     const storage = createMemoryStorage();
 
-    const set = setLineKind(storage, TEST_ACCOUNT, 'nope', LineKind.Income, null);
+    const set = setLineKind(storage, { account: TEST_ACCOUNT, key: 'nope' }, LineKind.Income, null);
 
     await expect(set).rejects.toThrow('key: no bank line nope');
   });

@@ -40,10 +40,15 @@ function cell(row: CellValue[], index: number): string {
 }
 
 function signedCents(debit: number | null, credit: number | null): number {
-  if (credit !== null && credit !== 0) {
-    return Math.abs(credit);
-  }
-  return debit === null || debit === 0 ? 0 : -Math.abs(debit);
+  return Math.abs(credit ?? 0) - Math.abs(debit ?? 0);
+}
+
+function isBlank(row: CellValue[]): boolean {
+  return row.every((value) => cellText(value) === '');
+}
+
+function hasAmount(row: CellValue[], map: ColumnMap): boolean {
+  return cellCents(cell(row, map.debit)) !== null || cellCents(cell(row, map.credit)) !== null;
 }
 
 function lineOf(row: CellValue[], map: ColumnMap): BankLine | null {
@@ -58,19 +63,28 @@ function lineOf(row: CellValue[], map: ColumnMap): BankLine | null {
   };
 }
 
-function linesAfter(rows: CellValue[][], map: ColumnMap): BankLine[] {
-  const lines: BankLine[] = [];
-  for (const row of rows) {
-    const line = lineOf(row, map);
-    if (line === null) {
-      break;
-    }
-    lines.push(line);
-  }
-  return lines;
+interface ReadLines {
+  lines: BankLine[];
+  skippedRows: number;
 }
 
-/** Reads the header block and every line of a BOC sheet's rows, amounts in signed cents (credit +, debit -). */
+function linesAfter(rows: CellValue[][], map: ColumnMap): ReadLines {
+  const lines: BankLine[] = [];
+  let skippedRows = 0;
+  for (const row of rows) {
+    const line = lineOf(row, map);
+    if (line !== null) {
+      lines.push(line);
+    } else if (hasAmount(row, map)) {
+      skippedRows += 1;
+    } else if (!isBlank(row)) {
+      break;
+    }
+  }
+  return { lines, skippedRows };
+}
+
+/** Reads the header block and every line of a BOC sheet's rows, amounts in signed cents (credit +, debit -); blank rows are skipped, rows with an amount but no date are counted in skippedRows, and a text-only row ends the lines. */
 export function parseBocRows(rows: CellValue[][]): BocStatement {
   const titleRow = rows.findIndex((cells) => label(cells[0]) === COLUMNS.date);
   const titles = rows[titleRow];
@@ -80,10 +94,12 @@ export function parseBocRows(rows: CellValue[][]): BocStatement {
   const header = rows.slice(0, titleRow);
   const period = headerValue(header, 'period');
   const [periodFrom, periodTo] = datesIn(period);
+  const { lines, skippedRows } = linesAfter(rows.slice(titleRow + 1), columnMap(titles));
+  const dates = lines.map((line) => line.date).sort((a, b) => a.localeCompare(b));
   return {
     accountNumber: headerValue(header, 'account number'), accountName: headerValue(header, 'account name'), accountType: headerValue(header, 'account type'),
-    currency: headerValue(header, 'account currency'), period, periodFrom: periodFrom ?? null, periodTo: periodTo ?? null,
-    lines: linesAfter(rows.slice(titleRow + 1), columnMap(titles)),
+    currency: headerValue(header, 'account currency'), period, periodFrom: periodFrom ?? dates[0] ?? null, periodTo: periodTo ?? dates[dates.length - 1] ?? null,
+    lines, skippedRows,
   };
 }
 

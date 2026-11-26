@@ -5,15 +5,17 @@ import { bocRows, bocXlsx, FIXTURE_LINES, TEST_ACCOUNT } from '../testing/bankFi
 import { parseBocRows } from './bocExport';
 import { importStatement, lineKey, readLedger } from './importLedger';
 
+const CAFE = { date: '2026-10-09', description: 'EXAMPLE CAFE LTD PURCHASE', type: 'Card Purchase - Local', debit: 7, credit: null, balance: 989.66, bankReference: 'BR0000000002' };
+const SHOP = { ...CAFE, date: '2026-10-10', description: 'EXAMPLE SHOP LTD PURCHASE', debit: 3, balance: 986.66 };
 const OPTIONS = { fileName: 'TransactionHistory_x.xlsx', bytes: bocXlsx(), directors: [] };
 
 describe('lineKey', () => {
   it('with a bank reference, is the account plus the reference', () => {
-    const line = parseBocRows(bocRows()).lines[0];
+    const line = parseBocRows(bocRows([{ ...CAFE, bankReference: 'BR0000000005' }])).lines[0];
 
-    const key = line === undefined ? '' : lineKey(TEST_ACCOUNT, line);
+    const key = line === undefined ? '' : lineKey('000000000000', line);
 
-    expect(key).toBe(`${TEST_ACCOUNT}:BR0000000005`);
+    expect(key).toBe('000000000000:BR0000000005');
   });
 
   it('with no bank reference, is the account plus a hash of date, amount, description and balance', () => {
@@ -75,5 +77,34 @@ describe('importStatement', () => {
     const result = await importStatement(storage, parseBocRows(bocRows()), OPTIONS);
 
     expect(result.lines.map((line) => line.kind)).toEqual(['bank-fee', 'to-review', 'expense', 'expense', 'to-review']);
+  });
+
+  it('with a repeated bank reference whose older line was imported first, adds only the newer line', async () => {
+    const storage = createMemoryStorage();
+    await importStatement(storage, parseBocRows(bocRows([CAFE])), OPTIONS);
+
+    const result = await importStatement(storage, parseBocRows(bocRows([SHOP, CAFE])), OPTIONS);
+
+    expect({ added: result.added, already: result.alreadyImported, stored: (await readLedger(storage, TEST_ACCOUNT)).map((line) => line.description) })
+      .toEqual({ added: 1, already: 1, stored: ['EXAMPLE SHOP LTD PURCHASE', 'EXAMPLE CAFE LTD PURCHASE'] });
+  });
+
+  it('with a repeated bank reference whose newer line was imported first, adds only the older line', async () => {
+    const storage = createMemoryStorage();
+    await importStatement(storage, parseBocRows(bocRows([SHOP])), OPTIONS);
+
+    const result = await importStatement(storage, parseBocRows(bocRows([SHOP, CAFE])), OPTIONS);
+
+    expect({ added: result.added, stored: (await readLedger(storage, TEST_ACCOUNT)).map((line) => line.description) })
+      .toEqual({ added: 1, stored: ['EXAMPLE SHOP LTD PURCHASE', 'EXAMPLE CAFE LTD PURCHASE'] });
+  });
+
+  it('with two identical lines imported, then three, adds only the third', async () => {
+    const storage = createMemoryStorage();
+    await importStatement(storage, parseBocRows(bocRows([CAFE, CAFE])), OPTIONS);
+
+    const again = await importStatement(storage, parseBocRows(bocRows([CAFE, CAFE, CAFE])), OPTIONS);
+
+    expect({ added: again.added, stored: (await readLedger(storage, TEST_ACCOUNT)).length }).toEqual({ added: 1, stored: 3 });
   });
 });

@@ -1,8 +1,8 @@
+import { CENTS_PER_UNIT } from './cents';
 import type { CellValue } from './xlsxRead';
 
 const EXCEL_EPOCH_OFFSET = 25569;
 const MS_PER_DAY = 86400000;
-const CENTS_PER_UNIT = 100;
 const ISO_DATE_LENGTH = 10;
 const ISO = /^(\d{4})-(\d{2})-(\d{2})/;
 const DAY_MONTH_YEAR = /^(\d{1,2})\/(\d{1,2})\/(\d{4})/;

@@ -70,7 +70,7 @@ function sheetXml(rows: CellValue[][], strings: string[]): string {
       strings.push(value);
       return `<c r="${ref}" t="s"><v>${strings.length - 1}</v></c>`;
     });
-    return `<row r="${r + 1}">${cells.join('')}</row>`;
+    return cells.length === 0 ? `<row r="${r + 1}"/>` : `<row r="${r + 1}">${cells.join('')}</row>`;
   });
   return `<?xml version="1.0"?><worksheet><sheetData>${rowXml.join('')}</sheetData></worksheet>`;
 }

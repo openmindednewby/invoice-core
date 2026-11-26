@@ -49,7 +49,10 @@ function centralEntry(view: DataView, bytes: Uint8Array, offset: number): Centra
 
 async function inflate(data: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([data.slice()]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const buffer = await new Response(stream).arrayBuffer().catch(() => {
+    throw notXlsx();
+  });
+  return new Uint8Array(buffer);
 }
 
 function entryData(view: DataView, bytes: Uint8Array, entry: CentralEntry): Promise<Uint8Array> {
@@ -77,11 +80,11 @@ async function readEntries(bytes: Uint8Array): Promise<Map<string, Uint8Array>> 
   return entries;
 }
 
-/** The files of a zip archive by name; throws InvoiceError when the bytes are not a readable zip. */
+/** The files of a zip archive by name; throws InvoiceError when the bytes are not a readable zip, and passes runtime errors through. */
 export async function readZipEntries(bytes: Uint8Array): Promise<Map<string, Uint8Array>> {
   try {
     return await readEntries(bytes);
   } catch (error) {
-    throw error instanceof InvoiceError ? error : notXlsx();
+    throw error instanceof RangeError ? notXlsx() : error;
   }
 }

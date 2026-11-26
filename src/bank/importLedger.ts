@@ -42,23 +42,54 @@ function hash(text: string): string {
   return value.toString(HASH_HEX).padStart(HASH_LENGTH, '0');
 }
 
-/** A line's idempotency key: account plus bank reference, else plus a hash of date, amount, text and balance. */
-export function lineKey(account: string, line: BankLine): string {
-  if (line.bankReference !== '') {
-    return `${account}:${line.bankReference}`;
-  }
-  const fingerprint = [line.date, String(line.amountCents), line.description, String(line.balanceCents ?? '')].join('|');
-  return `${account}:h${hash(fingerprint)}`;
+function fingerprint(line: BankLine): string {
+  return [line.date, String(line.amountCents), line.description, String(line.balanceCents ?? '')].join('|');
 }
 
-function keyed(account: string, lines: BankLine[]): KeyedLine[] {
-  const seen = new Map<string, number>();
-  return lines.map((line) => {
-    const base = lineKey(account, line);
-    const count = (seen.get(base) ?? 0) + 1;
-    seen.set(base, count);
-    return { key: count === 1 ? base : `${base}#${count}`, line };
-  });
+/** A line's idempotency key: account plus bank reference, else plus a hash of date, amount, text and balance. */
+export function lineKey(account: string, line: BankLine): string {
+  return line.bankReference !== '' ? `${account}:${line.bankReference}` : `${account}:h${hash(fingerprint(line))}`;
+}
+
+function identity(account: string, line: BankLine): string {
+  return `${lineKey(account, line)}|${fingerprint(line)}`;
+}
+
+function countBy(values: string[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return counts;
+}
+
+function freeKey(used: Set<string>, account: string, line: BankLine): string {
+  const base = lineKey(account, line);
+  if (!used.has(base)) {
+    return base;
+  }
+  const stable = `${base}#${hash(fingerprint(line))}`;
+  let key = stable;
+  for (let copy = 2; used.has(key); copy += 1) {
+    key = `${stable}-${String(copy)}`;
+  }
+  return key;
+}
+
+function freshLines(account: string, existing: LedgerLine[], lines: BankLine[]): KeyedLine[] {
+  const stored = countBy(existing.map((line) => identity(account, line)));
+  const used = new Set(existing.map((line) => line.key));
+  const fresh: KeyedLine[] = [];
+  for (const line of lines) {
+    const id = identity(account, line);
+    const left = stored.get(id) ?? 0;
+    if (left > 0) {
+      stored.set(id, left - 1);
+    } else {
+      const key = freeKey(used, account, line);
+      used.add(key);
+      fresh.push({ key, line });
+    }
+  }
+  return fresh;
 }
 
 /** Where the original statement file is kept: bank/statements/<account>/<from>_<to>.<ext>. */
@@ -91,8 +122,7 @@ export async function importStatement(storage: InvoiceStorage, statement: BocSta
   const context = { directors: options.directors, rules: await readPayeeRules(storage) };
   return storage.withLock(bankLock(account), async () => {
     const existing = await readLedger(storage, account);
-    const known = new Set(existing.map((line) => line.key));
-    const fresh = keyed(account, statement.lines).filter(({ key }) => !known.has(key))
+    const fresh = freshLines(account, existing, statement.lines)
       .map(({ key, line }): LedgerLine => ({ ...line, ...classifyLine(line, context), key, account, proof: null, statementFile }));
     const added = await linkPaidBills(storage, fresh);
     await saveLedger(storage, account, [...existing, ...added].sort((a, b) => b.date.localeCompare(a.date)));

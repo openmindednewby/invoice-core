@@ -130,4 +130,20 @@ describe('incomeTaxCents', () => {
 
     expect(tax).toBe((2000 + 2500 + 9000 + 2800) * EUR);
   });
+
+  it('with a negative income, refuses the input', () => {
+    const input = { year: 2026, incomeCents: -1 };
+
+    const reserve = (): unknown => taxReserve(input);
+
+    expect(reserve).toThrow('incomeCents: must not be negative');
+  });
+
+  it('with a negative planned salary, refuses the input', () => {
+    const input = { year: 2026, plannedSalaryCents: -500 };
+
+    const reserve = (): unknown => taxReserve(input);
+
+    expect(reserve).toThrow('plannedSalaryCents: must not be negative');
+  });
 });

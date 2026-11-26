@@ -13,7 +13,7 @@ describe('bankProofPack', () => {
   it('with an imported month, gives the CSV oldest first with kind, category, amount, proof or MISSING and the statement file', async () => {
     const storage = createMemoryStorage();
     const result = await importStatement(storage, parseBocRows(bocRows()), { fileName: 'TransactionHistory_x.xlsx', bytes: bocXlsx(), directors: [] });
-    await setLineKind(storage, TEST_ACCOUNT, result.lines[3]?.key ?? '', LineKind.Expense, 'meals-and-entertainment');
+    await setLineKind(storage, { account: TEST_ACCOUNT, key: result.lines[3]?.key ?? '' }, LineKind.Expense, 'meals-and-entertainment');
     const statement = `bank/statements/${TEST_ACCOUNT}/2026-10-01_2026-10-31.xlsx`;
 
     const pack = bankProofPack(await readLedger(storage, TEST_ACCOUNT), '2026-10', [...DEFAULT_EXPENSE_CATEGORIES]);

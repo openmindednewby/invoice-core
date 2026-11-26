@@ -67,7 +67,7 @@ function rowCells(xml: string, shared: string[]): CellValue[] {
 
 function sheetRows(xml: string, shared: string[]): CellValue[][] {
   const rows: CellValue[][] = [];
-  for (const match of xml.matchAll(/<row\b([^>]*)>([\s\S]*?)<\/row>/g)) {
+  for (const match of xml.matchAll(/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g)) {
     const number = Number(attr(match[1] ?? '', 'r'));
     rows[Number.isInteger(number) && number > 0 ? number - 1 : rows.length] = rowCells(match[2] ?? '', shared);
   }

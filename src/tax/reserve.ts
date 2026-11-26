@@ -1,9 +1,10 @@
+import { CENTS_PER_UNIT } from '../bank/cents';
 import { salaryCost } from './salaryCost';
 import { highestCost } from './sourcedValue';
+import { InvoiceError } from '../types';
 import { taxRulesFor } from './taxRules';
 import type { TaxRules } from './taxRuleTypes';
 
-const CENTS_PER_EUR = 100;
 
 export interface ReserveInput {
   readonly year: number;
@@ -29,6 +30,15 @@ export interface TaxReserve {
   readonly sourceIds: readonly string[];
 }
 
+const AMOUNT_FIELDS = ['incomeCents', 'expensesCents', 'vatChargedCents', 'vatReclaimableCents', 'plannedDividendsCents', 'plannedSalaryCents'] as const;
+
+function assertNotNegative(input: ReserveInput): void {
+  const errors = AMOUNT_FIELDS.filter((field) => (input[field] ?? 0) < 0).map((path) => ({ path, message: 'must not be negative' }));
+  if (errors.length > 0) {
+    throw new InvoiceError(errors);
+  }
+}
+
 interface DividendCost {
   readonly cents: number;
   readonly sourceIds: readonly string[];
@@ -39,7 +49,7 @@ function dividendCost(rules: TaxRules, dividendsCents: number, salaryCents: numb
     return { cents: 0, sourceIds: [] };
   }
   const { dividends, payroll } = rules;
-  const gesyRoom = Math.max(0, payroll.gesyAnnualCapEur.value * CENTS_PER_EUR - salaryCents);
+  const gesyRoom = Math.max(0, payroll.gesyAnnualCapEur.value * CENTS_PER_UNIT - salaryCents);
   const gesyBase = dividends.gesyCapAppliesToDividends.value ? Math.min(dividendsCents, gesyRoom) : dividendsCents;
   return {
     cents: Math.round(dividendsCents * highestCost(dividends.defenceContributionRate)) + Math.round(gesyBase * highestCost(dividends.gesyRate)),
@@ -52,8 +62,9 @@ function dividendCost(rules: TaxRules, dividendsCents: number, salaryCents: numb
   };
 }
 
-/** The tax reserve and the amount safe to spend for a year; null when no rule set ships for that year. */
+/** The tax reserve and the amount safe to spend for a year; null when no rule set ships for that year; throws on a negative amount. */
 export function taxReserve(input: ReserveInput): TaxReserve | null {
+  assertNotNegative(input);
   const rules = taxRulesFor(input.year);
   if (rules === null) {
     return null;

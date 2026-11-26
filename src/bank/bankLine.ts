@@ -22,6 +22,7 @@ export interface BocStatement {
   periodFrom: string | null;
   periodTo: string | null;
   lines: BankLine[];
+  skippedRows: number;
 }
 
 export interface ProofLink {
@@ -42,4 +43,9 @@ export interface LedgerLine extends BankLine, LineClass {
   account: string;
   proof: ProofLink | null;
   statementFile: string;
+}
+
+export interface LineRef {
+  account: string;
+  key: string;
 }

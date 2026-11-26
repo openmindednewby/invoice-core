@@ -95,7 +95,7 @@ export { prefillExpenseFromText } from './expenses/expensePrefill';
 export type { ExpensePrefill } from './expenses/expensePrefill';
 export { addReceipt, receiptMissing } from './expenses/expenseReceipt';
 export { PaidFrom } from './expenses/PaidFrom';
-export type { BankLine, BocStatement, LedgerLine, LineClass, ProofLink } from './bank/bankLine';
+export type { BankLine, BocStatement, LedgerLine, LineClass, LineRef, ProofLink } from './bank/bankLine';
 export { BANK_CHARGES_CATEGORY, BANK_DIR, ledgerPath, PAYEE_RULES_JSON, STATEMENTS_DIR } from './bank/bankPaths';
 export { BOC_SHEET, parseBocExport, parseBocRows } from './bank/bocExport';
 export { bankProofPack, MISSING_PROOF } from './bank/proofPack';

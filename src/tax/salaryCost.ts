@@ -1,8 +1,8 @@
+import { CENTS_PER_UNIT } from '../bank/cents';
 import { PayCap } from './PayCap';
 import { highestCost } from './sourcedValue';
 import type { PayrollFund, TaxBand, TaxRules } from './taxRuleTypes';
 
-const CENTS_PER_EUR = 100;
 const MONTHS_PER_YEAR = 12;
 
 export interface SalaryCost {
@@ -13,10 +13,10 @@ export interface SalaryCost {
 
 function capCents(rules: TaxRules, cap: PayCap): number {
   if (cap === PayCap.InsurableEarnings) {
-    return rules.payroll.maxInsurableEarningsPerMonthEur.value * MONTHS_PER_YEAR * CENTS_PER_EUR;
+    return rules.payroll.maxInsurableEarningsPerMonthEur.value * MONTHS_PER_YEAR * CENTS_PER_UNIT;
   }
   if (cap === PayCap.GesyIncome) {
-    return rules.payroll.gesyAnnualCapEur.value * CENTS_PER_EUR;
+    return rules.payroll.gesyAnnualCapEur.value * CENTS_PER_UNIT;
   }
   return Number.POSITIVE_INFINITY;
 }
@@ -29,8 +29,8 @@ function fundsCents(rules: TaxRules, funds: readonly PayrollFund[], salaryCents:
 }
 
 function bandTaxCents(band: TaxBand, salaryCents: number): number {
-  const top = band.toEur === null ? salaryCents : Math.min(salaryCents, band.toEur * CENTS_PER_EUR);
-  return Math.max(0, top - band.fromEur * CENTS_PER_EUR) * band.rate;
+  const top = band.toEur === null ? salaryCents : Math.min(salaryCents, band.toEur * CENTS_PER_UNIT);
+  return Math.max(0, top - band.fromEur * CENTS_PER_UNIT) * band.rate;
 }
 
 /** Personal income tax on a yearly salary, band by band, in whole cents. */
