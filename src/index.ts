@@ -136,3 +136,8 @@ export type {
   CompanyChanges, ComplianceRules, CorporateRules, DividendRules, FilingRules, PayrollFund, PayrollRules,
   PersonalIncomeTaxRules, TaxBand, TaxDeadline, TaxRules, TaxSource, VatRules,
 } from './tax/taxRuleTypes';
+export { EngagementMode } from './engagement/EngagementMode';
+export { EngagementStepKey, ENGAGEMENT_STEP_ORDER } from './engagement/EngagementStepKey';
+export { StepStatus } from './engagement/StepStatus';
+export { engagementDir, listEngagements, openEngagementLedger, readEngagement, startEngagement } from './engagement/engagement';
+export type { Engagement, EngagementInput, EngagementOptions, EngagementStep } from './engagement/engagementTypes';
