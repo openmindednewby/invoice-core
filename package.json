@@ -55,6 +55,7 @@
     "prepublishOnly": "npm run clean && npm run build && npm run test"
   },
   "dependencies": {
+    "@dloizides/evidence-ledger": "^0.1.0",
     "@dloizides/utils": "^1.14.0",
     "pdfmake": "0.2.12"
   },
